@@ -16,6 +16,8 @@ export default function AuthSystem({ onLogin }: AuthProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [madrassaName, setMadrassaName] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
 
   const [systemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
@@ -32,6 +34,26 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    if (!isLogin) {
+      // 1. Handle Account Request internally
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      users.push({
+        id: Date.now(),
+        username: name,
+        email: email,
+        password: password,
+        madrassaName: madrassaName,
+        whatsapp: whatsapp,
+        status: 'pending',
+        role: 'Admin'
+      });
+      localStorage.setItem('users', JSON.stringify(users));
+      alert('آپ کی درخواست ایڈمن کو بھیج دی گئی ہے۔ منظوری کے بعد ہی آپ لاگ ان کر سکیں گے۔');
+      setIsLoading(false);
+      setIsLogin(true);
+      return;
+    }
 
     try {
       // 1. First check against the requested Main Admin (Local Check for immediate access)
@@ -209,6 +231,32 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                     />
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
                   </div>
+                  <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu mt-4" dir="rtl">مدرسہ کا نام</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={madrassaName}
+                      onChange={(e) => setMadrassaName(e.target.value)}
+                      className="input-field text-right"
+                      placeholder="مدرسہ/جامعہ کا نام"
+                      dir="rtl"
+                    />
+                    <Landmark className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
+                  </div>
+                  <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu mt-4" dir="rtl">واٹس ایپ نمبر</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      className="input-field text-right"
+                      placeholder="واٹس ایپ نمبر"
+                      dir="rtl"
+                    />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -272,7 +320,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                   <span>برائے مہربانی انتظار کریں...</span>
                 </>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                isLogin ? 'Sign In' : 'Request Account'
               )}
             </button>
 

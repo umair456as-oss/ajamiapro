@@ -101,6 +101,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   // Permissions logic
   const [userRole, setUserRole] = useState(() => localStorage.getItem('currentUserRole') || 'Admin');
+  
+  const ADMIN_EMAILS = ['abdulrehmanhabib.com@gmail.com', 'jamiaarabiasirajululoomjabori@gmail.com'];
+  const currentUserEmail = localStorage.getItem('currentUser');
+  const isAdmin = ADMIN_EMAILS.includes(currentUserEmail || '');
+
   const [permissions, setPermissions] = useState(() => {
     const saved = localStorage.getItem('role_permissions');
     const defaultPerms = {
@@ -354,7 +359,10 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     { id: 'posts', path: '/dashboard/posts', icon: StickyNote, urdu: 'جامعہ پوسٹس', english: 'Jamia Posts' },
     { id: 'reports', path: '/dashboard/reports', icon: ClipboardList, urdu: 'رپورٹس', english: 'Reports Center' },
     { id: 'recycle_bin', path: '/dashboard/recycle-bin', icon: Trash2, urdu: 'ریسائیکل بن', english: 'Recycle Bin' },
-  ].filter(item => hasPermission(item.id));
+  ].filter(item => {
+    if (item.id === 'settings') return hasPermission(item.id) && isAdmin;
+    return hasPermission(item.id);
+  });
 
   const gridCards = [
     { id: 'students', path: '/dashboard/students', icon: Users, title: 'طالب علم', color: 'bg-blue-500' },
@@ -428,6 +436,10 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
               english={item.english} 
               active={location.pathname === item.path || (item.id === 'dashboard' && location.pathname === '/dashboard')} 
               onClick={() => {
+                if (item.id !== 'dashboard' && localStorage.getItem('paymentStatus') !== 'paid' && !isAdmin) {
+                  alert('اکاؤنٹ کو مکمل استعمال کرنے کے لیے ادائیگی ضروری ہے۔ آپ فی الحال ویو موڈ میں ہیں۔');
+                  return;
+                }
                 navigate(item.path);
                 if (item.path.includes('placeholder')) {
                   setActiveModuleName(item.urdu);
@@ -565,6 +577,10 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
                         subtitle={card.subtitle} 
                         color={card.color} 
                         onClick={() => {
+                          if (card.id !== 'dashboard' && localStorage.getItem('paymentStatus') !== 'paid' && !isAdmin) {
+                            alert('اکاؤنٹ کو مکمل استعمال کرنے کے لیے ادائیگی ضروری ہے۔ آپ فی الحال ویو موڈ میں ہیں۔');
+                            return;
+                          }
                           navigate(card.path);
                           if (card.path.includes('placeholder')) setActiveModuleName(card.title);
                         }}

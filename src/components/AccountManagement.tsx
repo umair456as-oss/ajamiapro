@@ -39,7 +39,7 @@ export default function AccountManagement() {
     return () => window.removeEventListener('storage_updated', handleUpdate);
   }, []);
 
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'Teacher' });
+  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
   
   const defaultPermissions = {
     'Admin': {
@@ -137,7 +137,7 @@ export default function AccountManagement() {
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     // 3. Clear form
-    setNewUser({ username: '', password: '', role: 'Teacher' });
+    setNewUser({ username: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
     
     // 4. Notify and sync
     window.dispatchEvent(new Event('storage_updated'));
@@ -226,11 +226,29 @@ export default function AccountManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-600 block">پاسورڈ (Password)</label>
+                <label className="text-sm font-bold text-slate-600 block">پاسورڈ</label>
                 <input 
                   type="text" 
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-600 block">مدرسہ کا نام</label>
+                <input 
+                  type="text" 
+                  value={newUser.madrassaName}
+                  onChange={(e) => setNewUser({...newUser, madrassaName: e.target.value})}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-600 block">واٹس ایپ نمبر</label>
+                <input 
+                  type="text" 
+                  value={newUser.whatsapp}
+                  onChange={(e) => setNewUser({...newUser, whatsapp: e.target.value})}
                   className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
                 />
               </div>

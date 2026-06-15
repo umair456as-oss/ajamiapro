@@ -1,6 +1,9 @@
+import { doc, getDoc, setDoc } from 'firebase/firestore';                
+import { db } from './lib/firebase';                
 import { API_BASE_URL, customFetch } from './config';
 
-// Safe JSON parser helper
+// Safe JSON parser helper 
+// ...
 const safeParse = (key: string, defaultValue: any) => {
   try {
     const item = localStorage.getItem(key);
@@ -112,18 +115,34 @@ export async function syncFromServer(): Promise<any> {
   return null;
 }
 
+
+async function syncToFirestore(payload: Record<string, any>) {
+  const madrassaId = localStorage.getItem('madrassaId');
+  if (!madrassaId) return;
+  const docRef = doc(db, 'madrassas', madrassaId);
+  await setDoc(docRef, { data: payload, updatedAt: new Date().toISOString() }, { merge: true });
+}
+
 /**
  * Push all local changes to the server.
  * Gathers all synced keys from local storage and sends them to the server.
  */
 export async function syncToServer(): Promise<boolean> {
-  console.log('Initiating Strict Push Sync to server...');
+  console.log('Initiating Strict Push Sync to server AND Firebase...');
   
   // Construct the payload of all synchronized keys
   const payload: Record<string, any> = {};
   SYNC_KEYS.forEach(key => {
     payload[key] = safeParse(key, key === 'system_settings' || key === 'website_settings' ? {} : []);
   });
+
+  // Sync to Firebase
+  try {
+    await syncToFirestore(payload);
+    console.log('Firebase sync successful.');
+  } catch (err) {
+    console.warn('Firebase sync failed:', err);
+  }
 
   try {
     const response = await customFetch(`${API_BASE_URL}/api/sync`, {
