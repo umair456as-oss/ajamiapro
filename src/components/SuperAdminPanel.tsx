@@ -37,11 +37,13 @@ export default function SuperAdminPanel() {
   // Listen for sync/storage events
   useEffect(() => {
     const handleUpdate = () => {
+      console.log('Storage event received in SuperAdminPanel, checking users...');
       try {
         const savedMadrasas = localStorage.getItem('licensed_madrasas');
         if (savedMadrasas) setMadrasas(JSON.parse(savedMadrasas));
         
         const savedUsers = localStorage.getItem('users');
+        console.log('Saved users from storage:', savedUsers);
         if (savedUsers) setUsers(JSON.parse(savedUsers));
       } catch (err) {}
     };

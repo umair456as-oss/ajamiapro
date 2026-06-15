@@ -38,7 +38,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     if (!isLogin) {
       // 1. Handle Account Request internally
       const users = JSON.parse(localStorage.getItem('users') || '[]');
-      users.push({
+      const newUser = {
         id: Date.now(),
         username: name,
         email: email,
@@ -47,8 +47,11 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         whatsapp: whatsapp,
         status: 'pending',
         role: 'Admin'
-      });
+      };
+      users.push(newUser);
       localStorage.setItem('users', JSON.stringify(users));
+      console.log('New account request saved:', newUser);
+      window.dispatchEvent(new Event('storage_updated'));
       alert('آپ کی درخواست ایڈمن کو بھیج دی گئی ہے۔ منظوری کے بعد ہی آپ لاگ ان کر سکیں گے۔');
       setIsLoading(false);
       setIsLogin(true);
