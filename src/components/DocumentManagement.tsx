@@ -2,17 +2,18 @@ import React, { useState } from 'react';
 import { 
   FileText, ArrowRight, ClipboardList, 
   Download, Printer, Search, Grid,
-  Users, Calendar, BookOpen
+  Users, Calendar, BookOpen, Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import DailyAttendanceSheet from './DailyAttendanceSheet';
+import StudentDocumentCapture from './StudentDocumentCapture';
 
 interface DocumentManagementProps {
   onBack: () => void;
 }
 
 const DocumentManagement: React.FC<DocumentManagementProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'main' | 'attendance_sheet'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'attendance_sheet' | 'document_capture'>('main');
 
   const menuItems = [
     { 
@@ -23,11 +24,22 @@ const DocumentManagement: React.FC<DocumentManagementProps> = ({ onBack }) => {
       color: 'bg-blue-600',
       onClick: () => setActiveTab('attendance_sheet')
     },
-    // Future items can be added here
+    { 
+      id: 'document_capture', 
+      urdu: 'طلبہ دستاویزات کیپچر', 
+      english: 'Student Document Capture', 
+      icon: Camera, 
+      color: 'bg-indigo-600',
+      onClick: () => setActiveTab('document_capture')
+    },
   ];
 
   if (activeTab === 'attendance_sheet') {
     return <DailyAttendanceSheet onBack={() => setActiveTab('main')} />;
+  }
+
+  if (activeTab === 'document_capture') {
+    return <StudentDocumentCapture onBack={() => setActiveTab('main')} />;
   }
 
   return (

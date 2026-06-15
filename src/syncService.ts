@@ -26,6 +26,7 @@ const SYNC_KEYS = [
   'saved_salaries',
   'saved_fees',
   'role_permissions',
+  'users',
   'recycle_bin'
 ];
 

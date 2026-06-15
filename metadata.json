@@ -2,5 +2,5 @@
   "name": "E-Jamia Management System",
   "description": "A comprehensive institution management system with Urdu localization, dynamic branding, student admissions, exam management, and administrative controls.",
   "requestFramePermissions": ["camera"],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

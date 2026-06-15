@@ -288,12 +288,14 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
   };
 
   const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true' || localStorage.getItem('currentUser') === 'jamiaarabiasirajululoomjabori@gmail.com';
+  const currentUserRole = localStorage.getItem('currentUserRole') || 'Admin';
+  const isAccountManagerAdmin = currentUserRole === 'Admin' || isSuperAdmin;
 
   const tabs = [
     { id: 'basic', label: 'بنیادی ترتیبات' },
     { id: 'registration', label: 'رجسٹریشن نمبر ترتیبات' },
     { id: 'date', label: 'تاریخ کی ترتیبات' },
-    { id: 'account', label: 'اکاؤنٹ مینجمنٹ' },
+    ...(isAccountManagerAdmin ? [{ id: 'account', label: 'اکاؤنٹ مینجمنٹ' }] : []),
     { id: 'online', label: 'آن لائن داخلہ فارم' },
     { id: 'system', label: 'نظام کی ترتیبات' },
     ...(isSuperAdmin ? [{ id: 'superadmin', label: 'سپر ایڈمن کنٹرول (مدارس مینیجر)' }] : []),

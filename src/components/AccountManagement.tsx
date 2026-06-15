@@ -6,6 +6,15 @@ import VoiceInput from './VoiceInput';
 export default function AccountManagement() {
   const [activeTab, setActiveTab] = useState<'permissions' | 'maker'>('maker');
   const [roles, setRoles] = useState(['Admin', 'Teacher', 'Staff', 'Parent']);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const showNotice = (type: 'success' | 'error', text: string) => {
+    setNotification({ type, text });
+    setTimeout(() => {
+      setNotification(null);
+    }, 4500);
+  };
+
   const [users, setUsers] = useState<any[]>(() => {
     try {
       const saved = localStorage.getItem('users');
@@ -87,14 +96,15 @@ export default function AccountManagement() {
     { id: 'settings', label: 'ترتیبات' },
   ];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const syncFormat = Object.keys(permissions).map(role => ({
       role: role,
       permissions: JSON.stringify(permissions[role])
     }));
     localStorage.setItem('role_permissions', JSON.stringify(syncFormat));
     window.dispatchEvent(new Event('storage_updated'));
-    alert('اختیارات کامیابی سے محفوظ ہو گئے');
+    await syncToServer();
+    showNotice('success', 'اختیارات کامیابی سے محفوظ ہو گئے');
   };
 
   const togglePermission = (role: string, module: string) => {
@@ -107,9 +117,9 @@ export default function AccountManagement() {
     }));
   };
 
-  const handleCreateAccount = () => {
+  const handleCreateAccount = async () => {
     if (!newUser.username || !newUser.password) {
-      alert('یوزر نیم اور پاسورڈ درج کریں');
+      showNotice('error', 'یوزر نیم اور پاسورڈ درج کریں');
       return;
     }
 
@@ -126,21 +136,30 @@ export default function AccountManagement() {
     
     // 4. Notify and sync
     window.dispatchEvent(new Event('storage_updated'));
-    syncToServer(); // Ensure it goes to the server
-    alert('اکاؤنٹ کامیابی سے بن گیا');
+    await syncToServer(); // Ensure it goes to the server
+    showNotice('success', 'اکاؤنٹ کامیابی سے بن گیا');
   };
 
-  const handleDeleteUser = (id: number) => {
+  const handleDeleteUser = async (id: number) => {
     const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
     const updatedUsers = currentUsers.filter((u: any) => u.id !== id);
     setUsers(updatedUsers);
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     window.dispatchEvent(new Event('storage_updated'));
-    syncToServer(); // Ensure it goes to the server
+    await syncToServer(); // Ensure it goes to the server
   };
 
   return (
     <div className="bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-500 p-8" dir="rtl">
+      {notification && (
+        <div className={`mb-6 p-4 rounded-2xl border font-bold text-sm text-center animate-in fade-in slide-in-from-top duration-300 ${
+          notification.type === 'success' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {notification.text}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-800">اکاؤنٹ مینجمنٹ (Account Management)</h2>

@@ -191,13 +191,73 @@ app.post('/api/login', async (req, res) => {
       return res.json({ success: true, user: { username: 'Admin', role: 'Admin', isSuperAdmin: true } });
     }
 
-    // Check custom roles in users dataset
+    // Check custom roles in users dataset and all tenant _users datasets
     const data = await getAllData();
-    const users = data.users || [];
-    const found = users.find((u: any) => u.email === email && u.password === password);
-    
-    if (found) {
-      return res.json({ success: true, user: { username: found.name || email, role: found.role || 'User' } });
+    let foundSubUser: any = null;
+    let foundMadrassaId: string | null = null;
+
+    // Check global/master users key
+    const globalUsers = data.users || [];
+    const foundGlobal = globalUsers.find((u: any) => 
+      (u.email === email || u.username === email) && u.password === password
+    );
+
+    if (foundGlobal) {
+      foundSubUser = foundGlobal;
+    } else {
+      // Look through all keys ending with '_users'
+      for (const key of Object.keys(data)) {
+        if (key.endsWith('_users')) {
+          const tenantUsers = data[key] || [];
+          const matched = tenantUsers.find((u: any) => 
+            (u.email === email || u.username === email) && u.password === password
+          );
+          if (matched) {
+            foundSubUser = matched;
+            foundMadrassaId = key.replace('_users', '');
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundSubUser) {
+      let jamiaName = 'جامعہ عربیہ سراج العلوم';
+      let expiryDate = '';
+      let allowedModules = ['dashboard', 'students', 'all_students', 'attendance', 'academics', 'exams', 'paper_maker', 'paper_uploader', 'finance', 'staff', 'settings'];
+
+      if (foundMadrassaId) {
+        // Fetch specific madrassa name and details
+        const tenantSettings = data[`${foundMadrassaId}_system_settings`];
+        if (tenantSettings && tenantSettings.jamiaName) {
+          jamiaName = tenantSettings.jamiaName;
+        }
+
+        const madrasas = data.licensed_madrasas || [];
+        const m = madrasas.find((x: any) => x.id === foundMadrassaId);
+        if (m) {
+          if (m.status === 'inactive') {
+            return res.status(403).json({ success: false, error: 'یہ اکاؤنٹ معطل یا غیر فعال ہے۔ براہ کرم سپر ایڈمن سے رابطہ کریں۔' });
+          }
+          if (m.madrassaName && !tenantSettings?.jamiaName) {
+            jamiaName = m.madrassaName;
+          }
+          expiryDate = m.expiryDate;
+          allowedModules = m.allowedModules || allowedModules;
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        user: { 
+          username: foundSubUser.username || foundSubUser.email || foundSubUser.name || email, 
+          role: foundSubUser.role || 'Teacher',
+          madrassaId: foundMadrassaId || undefined,
+          jamiaName,
+          expiryDate,
+          allowedModules
+        } 
+      });
     }
 
     // Check in licensed_madrasas (SaaS Multi-tenant License)

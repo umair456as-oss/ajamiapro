@@ -46,7 +46,29 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         return;
       }
 
-      // 2. Check against Server API
+      // 1.5 Check local users dataset for instant offline-friendly matched accounts
+      const localUsersStr = localStorage.getItem('users');
+      if (localUsersStr) {
+        try {
+          const localUsers = JSON.parse(localUsersStr);
+          const foundLocal = localUsers.find((u: any) => 
+            (u.username === email || u.username?.toLowerCase() === email?.toLowerCase() || u.email === email) && 
+            u.password === password
+          );
+          if (foundLocal) {
+            localStorage.setItem('currentUser', foundLocal.username);
+            localStorage.setItem('currentUserRole', foundLocal.role || 'Teacher');
+            localStorage.setItem('isLoggedIn', 'true');
+            onLogin();
+            navigate('/dashboard');
+            return;
+          }
+        } catch (localErr) {
+          console.warn('Local authentication lookup error:', localErr);
+        }
+      }
+
+      // 2. Check against Server API for central and multi-tenant authentication
       const response = await customFetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,12 +213,12 @@ export default function AuthSystem({ onLogin }: AuthProps) {
               <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu" dir="rtl">یوزرنیم یا ای میل</label>
               <div className="relative">
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field text-right"
-                  placeholder="name@company.com"
+                  placeholder="یوزر کوڈ یا ای میل درج کریں"
                   dir="rtl"
                 />
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
@@ -249,6 +271,20 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                 isLogin ? 'Sign In' : 'Create Account'
               )}
             </button>
+
+            {isLogin && (
+              <button 
+                type="button"
+                onClick={() => {
+                  setEmail('jamiaarabiasirajululoomjabori@gmail.com');
+                  setPassword('jamiaarabiasirajululoomjabori');
+                }}
+                className="w-full mt-2 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              >
+                <Landmark className="w-4 h-4" />
+                Admin Login
+              </button>
+            )}
           </form>
 
           <div className="mt-8">

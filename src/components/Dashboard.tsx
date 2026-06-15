@@ -32,6 +32,7 @@ import FeesManagement from './FeesManagement';
 import DarulIfta from './DarulIfta';
 import JamiaPosts from './JamiaPosts';
 import RecycleBin from './RecycleBin';
+import StudentDocumentCapture from './StudentDocumentCapture';
 import { fetchCentralData, updateCentralKey, syncFromServer, syncToServer } from '../syncService';
 import { Cloud, CloudOff, RefreshCw, Upload, CheckSquare, FileText as FileTextIcon } from 'lucide-react';
 
@@ -159,6 +160,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
             fees_grid: 'finance',
             staff: 'staff',
             staff_grid: 'staff',
+            document_capture: 'students',
           };
           const mappedMod = moduleMapping[modId];
           if (mappedMod && !allowed.includes(mappedMod)) {
@@ -175,6 +177,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       dashboard: 'dashboard',
       students: 'students',
       all_students: 'students',
+      document_capture: 'students',
       attendance: 'attendance',
       attendance_qr: 'attendance',
       manual: 'attendance',
@@ -328,6 +331,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     { id: 'dashboard', path: '/dashboard', icon: LayoutDashboard, urdu: 'ڈیش بورڈ', english: 'Dashboard' },
     { id: 'students', path: '/dashboard/students', icon: Users, urdu: 'طالب علم', english: 'Students' },
     { id: 'all_students', path: '/dashboard/all-students', icon: List, urdu: 'تمام طالب علم', english: 'All Students' },
+    { id: 'document_capture', path: '/dashboard/document-capture', icon: Camera, urdu: 'دستاویز کیپچر', english: 'Document Capture' },
     { id: 'attendance', path: '/dashboard/attendance', icon: UserCheck, urdu: 'سیکیورٹی حاضری', english: 'Attendance' },
     { id: 'lessons', path: '/dashboard/lessons', icon: BookOpen, urdu: 'روز کا سبق', english: 'Daily Lessons' },
     { id: 'manual', path: '/dashboard/manual-attendance', icon: Hand, urdu: 'دستی حاضری', english: 'Manual Attend' },
@@ -355,6 +359,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const gridCards = [
     { id: 'students', path: '/dashboard/students', icon: Users, title: 'طالب علم', color: 'bg-blue-500' },
     { id: 'all_students', path: '/dashboard/all-students', icon: List, title: 'تمام طالب علم', color: 'bg-blue-600' },
+    { id: 'document_capture', path: '/dashboard/document-capture', icon: Camera, title: 'طلبہ دستاویزات کیپچر', color: 'bg-indigo-600' },
     { id: 'relatives', path: '/dashboard/placeholder', icon: Users, title: 'رشتہ دار', color: 'bg-indigo-600' },
     { id: 'attendance_qr', path: '/dashboard/attendance', icon: UserCheck, title: 'حاضری طلبہ (QR/Bio)', color: 'bg-cyan-500' },
     { id: 'lessons_daily', path: '/dashboard/placeholder', icon: BookOpen, title: 'روز کا سبق', subtitle: '(Daily Lesson)', color: 'bg-teal-500' },
@@ -460,6 +465,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
         <Routes>
           <Route path="/students" element={<StudentManagement onBack={() => navigate('/dashboard')} />} />
           <Route path="/all-students" element={<AllStudents onBack={() => navigate('/dashboard')} />} />
+          <Route path="/document-capture" element={<StudentDocumentCapture onBack={() => navigate('/dashboard')} />} />
           <Route path="/settings" element={<SettingsView onBack={() => navigate('/dashboard')} onSubViewChange={(view) => {
             if (view === 'exam_management') navigate('/dashboard/exams');
           }} />} />
