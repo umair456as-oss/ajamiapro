@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 
 interface AuthProps {
   onLogin: () => void;
@@ -37,13 +37,17 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         localStorage.setItem('currentUser', email);
         localStorage.setItem('currentUserRole', 'Admin');
         localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('isSuperAdmin', 'true');
+        localStorage.removeItem('madrassaId');
+        localStorage.removeItem('madrassaJamiaName');
+        localStorage.removeItem('madrassaModules');
         onLogin();
         navigate('/dashboard');
         return;
       }
 
       // 2. Check against Server API
-      const response = await fetch(`${API_BASE_URL}/api/login`, {
+      const response = await customFetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -51,18 +55,41 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (response.ok && result.success) {
         localStorage.setItem('currentUser', result.user.username);
-        localStorage.setItem('currentUserRole', result.user.role);
+        localStorage.setItem('currentUserRole', result.user.role || 'Admin');
         localStorage.setItem('isLoggedIn', 'true');
         
-        // If it's a role-based user, their specific permissions are already handled in Dashboard via localStorage
-        // But we ensure the role is set so the permission logic picks it up.
-        
+        if (result.user.isSuperAdmin) {
+          localStorage.setItem('isSuperAdmin', 'true');
+          localStorage.removeItem('madrassaId');
+          localStorage.removeItem('madrassaJamiaName');
+          localStorage.removeItem('madrassaModules');
+        } else if (result.user.madrassaId) {
+          localStorage.setItem('madrassaId', result.user.madrassaId);
+          localStorage.setItem('madrassaJamiaName', result.user.jamiaName);
+          localStorage.setItem('madrassaExpiry', result.user.expiryDate);
+          localStorage.setItem('madrassaModules', JSON.stringify(result.user.allowedModules || []));
+          localStorage.removeItem('isSuperAdmin');
+          
+          // Re-write system settings jamiaName locally so current views display it
+          try {
+            const savedSettings = localStorage.getItem('system_settings');
+            const parsed = savedSettings ? JSON.parse(savedSettings) : {};
+            parsed.jamiaName = result.user.jamiaName;
+            localStorage.setItem('system_settings', JSON.stringify(parsed));
+          } catch(e) {}
+        } else {
+          localStorage.removeItem('madrassaId');
+          localStorage.removeItem('isSuperAdmin');
+          localStorage.removeItem('madrassaJamiaName');
+          localStorage.removeItem('madrassaModules');
+        }
+
         onLogin();
         navigate('/dashboard');
       } else {
-        setError('یوزر نیم یا پاسورڈ غلط ہے۔');
+        setError(result.error || 'یوزر نیم یا پاسورڈ غلط ہے۔');
       }
     } catch (err) {
       setError('سرور سے رابطہ کرنے میں خرابی۔ براہ کرم دوبارہ کوشش کریں۔');

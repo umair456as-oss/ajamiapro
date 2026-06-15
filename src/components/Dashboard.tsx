@@ -126,6 +126,48 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   });
 
   const hasPermission = (modId: string) => {
+    // Check SaaS multi-tenant billing allowed modules list
+    const allowedRaw = localStorage.getItem('madrassaModules');
+    if (allowedRaw) {
+      try {
+        const allowed = JSON.parse(allowedRaw);
+        if (Array.isArray(allowed)) {
+          const moduleMapping: Record<string, string> = {
+            students: 'students',
+            all_students: 'students',
+            attendance: 'attendance',
+            attendance_qr: 'attendance',
+            manual: 'attendance',
+            camera: 'attendance',
+            staff_attendance: 'attendance',
+            academics: 'academics',
+            grade: 'academics',
+            lessons: 'academics',
+            lessons_daily: 'academics',
+            results: 'exams',
+            results_grid: 'exams',
+            exams: 'exams',
+            paper_maker: 'exams',
+            paper_uploader: 'exams',
+            paper_checker: 'exams',
+            paper_reports: 'exams',
+            finance: 'finance',
+            saved_salaries: 'staff',
+            payroll: 'finance',
+            payroll_grid: 'finance',
+            fees: 'finance',
+            fees_grid: 'finance',
+            staff: 'staff',
+            staff_grid: 'staff',
+          };
+          const mappedMod = moduleMapping[modId];
+          if (mappedMod && !allowed.includes(mappedMod)) {
+            return false;
+          }
+        }
+      } catch (e) {}
+    }
+
     if (userRole === 'Admin') return true;
     
     // Map sidebar/grid IDs to permission keys

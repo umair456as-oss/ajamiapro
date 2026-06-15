@@ -49,7 +49,7 @@ async function getAllData(): Promise<any> {
       'students', 'staff', 'system_settings', 'website_settings',
       'website_fatawa', 'website_gallery', 'website_gallery_categories',
       'books', 'grades', 'results', 'saved_salaries', 'saved_fees',
-      'role_permissions', 'users', 'recycle_bin'
+      'role_permissions', 'users', 'recycle_bin', 'licensed_madrasas'
     ];
     SYNC_KEYS.forEach(k => {
       if (data[k] === undefined) {
@@ -71,7 +71,9 @@ async function setValue(key: string, value: any): Promise<void> {
   try {
     const data = await getAllData();
     data[key] = value;
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    const tempPath = DB_PATH + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempPath, DB_PATH);
   } catch (err) {
     console.error(`Error saving key "${key}" to JSON DB file:`, err);
     throw err;
@@ -82,11 +84,55 @@ async function setValue(key: string, value: any): Promise<void> {
  * Backend API Endpoints
  */
 
-// 1. Get entire dataset
+// 1. Get entire dataset with tenant-aware isolation
 app.get('/api/data', async (req, res) => {
   try {
     const data = await getAllData();
-    res.json(data);
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+
+    if (!madrassaId || madrassaId === 'master' || madrassaId === 'undefined') {
+      res.json(data);
+    } else {
+      // Build tenant specific isolated data subset
+      const tenantData: Record<string, any> = {};
+      const prefix = `${madrassaId}_`;
+
+      const SYNC_KEYS = [
+        'students', 'staff', 'system_settings', 'website_settings',
+        'website_fatawa', 'website_gallery', 'website_gallery_categories',
+        'books', 'grades', 'results', 'saved_salaries', 'saved_fees',
+        'role_permissions', 'users', 'recycle_bin'
+      ];
+
+      SYNC_KEYS.forEach(k => {
+        const tenantKey = prefix + k;
+        if (data[tenantKey] !== undefined) {
+          tenantData[k] = data[tenantKey];
+        } else {
+          // Robust fallback structures for brand new madrasas
+          if (k === 'system_settings') {
+            tenantData[k] = {
+              jamiaName: 'جامعہ نئی رجسٹرڈ',
+              registrationPrefix: 'JAMIA-',
+              contactNumber: '',
+              academicYear: '1445',
+              passingMarks: 40,
+              minAttendance: 75,
+              monogram: ''
+            };
+          } else if (k === 'website_settings') {
+            tenantData[k] = {};
+          } else {
+            tenantData[k] = [];
+          }
+        }
+      });
+
+      // Keep licensed_madrasas list available to tenant's own reference if needed,
+      // but only empty list to maintain compatibility or empty users
+      tenantData['licensed_madrasas'] = [];
+      res.json(tenantData);
+    }
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -97,7 +143,16 @@ app.post('/api/sync', async (req, res) => {
   try {
     const payload = req.body;
     if (payload && typeof payload === 'object') {
-      const promises = Object.keys(payload).map(key => setValue(key, payload[key]));
+      const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+      const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
+      const promises = Object.keys(payload).map(key => {
+        // licensed_madrasas is super-admin global and cannot be isolated/prefixed
+        if (key === 'licensed_madrasas') {
+          return setValue(key, payload[key]);
+        }
+        return setValue(prefix + key, payload[key]);
+      });
       await Promise.all(promises);
       res.json({ success: true, message: 'Sync completed successfully' });
     } else {
@@ -113,21 +168,27 @@ app.post('/api/save-key', async (req, res) => {
   try {
     const { key, value } = req.body;
     if (!key) return res.status(400).json({ error: 'Missing core "key"' });
-    await setValue(key, value);
+    
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+    
+    // licensed_madrasas is a global collection
+    const targetKey = key === 'licensed_madrasas' ? key : (prefix + key);
+    await setValue(targetKey, value);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 4. Authenticate Users / Staff Logins
+// 4. Authenticate Users / Staff Logins with custom License integration
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Core default match from client logic
+    // Core default match from client logic (Super Admin)
     if (email === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
-      return res.json({ success: true, user: { username: 'Admin', role: 'Admin' } });
+      return res.json({ success: true, user: { username: 'Admin', role: 'Admin', isSuperAdmin: true } });
     }
 
     // Check custom roles in users dataset
@@ -136,35 +197,69 @@ app.post('/api/login', async (req, res) => {
     const found = users.find((u: any) => u.email === email && u.password === password);
     
     if (found) {
-      res.json({ success: true, user: { username: found.name || email, role: found.role || 'User' } });
-    } else {
-      res.status(401).json({ success: false, error: 'يوزر نیم یا پاسورڈ غلط ہے۔' });
+      return res.json({ success: true, user: { username: found.name || email, role: found.role || 'User' } });
     }
+
+    // Check in licensed_madrasas (SaaS Multi-tenant License)
+    const madrasas = data.licensed_madrasas || [];
+    const foundMadrassa = madrasas.find((m: any) => m.email === email && m.password === password);
+    if (foundMadrassa) {
+      if (foundMadrassa.status === 'inactive') {
+        return res.status(403).json({ success: false, error: 'یہ اکاؤنٹ معطل یا غیر فعال ہے۔ براہ کرم سپر ایڈمن سے رابطہ کریں۔' });
+      }
+      const expiry = new Date(foundMadrassa.expiryDate);
+      if (expiry < new Date()) {
+        return res.status(403).json({ success: false, error: 'آپ کا سالانہ سافٹ ویئر لائسنس ختم ہو چکا ہے۔ برائے مہربانی تجدید کے لیے رابطہ کریں۔' });
+      }
+      return res.json({
+        success: true,
+        user: {
+          username: foundMadrassa.madrassaName,
+          role: 'Admin',
+          madrassaId: foundMadrassa.id,
+          jamiaName: foundMadrassa.madrassaName,
+          expiryDate: foundMadrassa.expiryDate,
+          allowedModules: foundMadrassa.allowedModules
+        }
+      });
+    }
+
+    res.status(401).json({ success: false, error: 'یوزر نیم یا پاسورڈ غلط ہے۔' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 5. Save or create student
+// 5. Save or create student with robust indexing and tenant safety
 app.post('/api/add-student', async (req, res) => {
   try {
     const student = req.body;
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
     const data = await getAllData();
-    const students = data.students || [];
+    const studentsKey = `${prefix}students`;
+    const students = data[studentsKey] || [];
 
     // Assign dynamic key-id if temporary or missing
     if (!student.id || String(student.id).startsWith('temp-')) {
       student.id = Date.now();
     }
 
-    const idx = students.findIndex((s: any) => String(s.id) === String(student.id) || s.regNo === student.regNo);
+    const idx = students.findIndex((s: any) => {
+      const matchId = String(s.id) === String(student.id);
+      const hasRegNo = student.regNo && String(student.regNo).trim() !== '';
+      const matchRegNo = hasRegNo && s.regNo && String(s.regNo).trim() === String(student.regNo).trim();
+      return matchId || matchRegNo;
+    });
+
     if (idx >= 0) {
       students[idx] = { ...students[idx], ...student };
     } else {
       students.push(student);
     }
 
-    await setValue('students', students);
+    await setValue(studentsKey, students);
     res.json({ success: true, id: student.id });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -176,6 +271,9 @@ app.post('/api/upload-excel', async (req, res) => {
   try {
     const { fileData, type } = req.body;
     if (!fileData) return res.status(400).json({ error: 'No Excel file data found' });
+
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
 
     // Extract Base64 binary
     const base64Index = fileData.indexOf(';base64,');
@@ -190,7 +288,8 @@ app.post('/api/upload-excel', async (req, res) => {
     const data = await getAllData();
 
     if (type === 'student') {
-      const existing = data.students || [];
+      const studentsKey = `${prefix}students`;
+      const existing = data[studentsKey] || [];
       const updated = [...existing];
       
       parsedRows.forEach((row: any) => {
@@ -215,9 +314,10 @@ app.post('/api/upload-excel', async (req, res) => {
         }
       });
       
-      await setValue('students', updated);
+      await setValue(studentsKey, updated);
     } else if (type === 'staff') {
-      const existing = data.staff || [];
+      const staffKey = `${prefix}staff`;
+      const existing = data[staffKey] || [];
       const updated = [...existing];
 
       parsedRows.forEach((row: any) => {
@@ -239,7 +339,7 @@ app.post('/api/upload-excel', async (req, res) => {
         }
       });
 
-      await setValue('staff', updated);
+      await setValue(staffKey, updated);
     }
 
     res.json({ success: true, message: 'فائل کامیابی سے اپلوڈ اور مرج کر دی گئی ہے۔' });
@@ -252,8 +352,12 @@ app.post('/api/upload-excel', async (req, res) => {
 app.post('/api/save-salary', async (req, res) => {
   try {
     const salaries = req.body; // Can be a single slip or array
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
     const data = await getAllData();
-    const existing = data.saved_salaries || [];
+    const salariesKey = `${prefix}saved_salaries`;
+    const existing = data[salariesKey] || [];
     
     let updated = [...existing];
     if (Array.isArray(salaries)) {
@@ -266,7 +370,7 @@ app.post('/api/save-salary', async (req, res) => {
       updated.push(salaries);
     }
 
-    await setValue('saved_salaries', updated);
+    await setValue(salariesKey, updated);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -276,8 +380,12 @@ app.post('/api/save-salary', async (req, res) => {
 // 8. Generate Fee Collection daily summaries
 app.get('/api/fees-collection-report', async (req, res) => {
   try {
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
     const data = await getAllData();
-    const savedFees = data.saved_fees || [];
+    const feesKey = `${prefix}saved_fees`;
+    const savedFees = data[feesKey] || [];
     
     const todayStr = new Date().toLocaleDateString();
     
@@ -299,8 +407,12 @@ app.get('/api/fees-collection-report', async (req, res) => {
 app.get('/api/student-fees/:regNo', async (req, res) => {
   try {
     const { regNo } = req.params;
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
     const data = await getAllData();
-    const savedFees = data.saved_fees || [];
+    const feesKey = `${prefix}saved_fees`;
+    const savedFees = data[feesKey] || [];
     const matching = savedFees.filter((f: any) => String(f.regNo) === String(regNo));
     res.json(matching);
   } catch (err: any) {
@@ -312,6 +424,9 @@ app.get('/api/student-fees/:regNo', async (req, res) => {
 app.post('/api/save-fee', async (req, res) => {
   try {
     const feeTransaction = req.body;
+    const madrassaId = req.headers['x-madrassa-id'] as string | undefined;
+    const prefix = madrassaId && madrassaId !== 'master' && madrassaId !== 'undefined' ? `${madrassaId}_` : '';
+
     if (!feeTransaction.id) {
       feeTransaction.id = Date.now();
     }
@@ -320,10 +435,11 @@ app.post('/api/save-fee', async (req, res) => {
     }
 
     const data = await getAllData();
-    const existing = data.saved_fees || [];
+    const feesKey = `${prefix}saved_fees`;
+    const existing = data[feesKey] || [];
     
     const updated = [...existing, feeTransaction];
-    await setValue('saved_fees', updated);
+    await setValue(feesKey, updated);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

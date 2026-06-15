@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { motion, AnimatePresence } from 'motion/react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 import Webcam from 'react-webcam';
 import { addToRecycleBin } from './RecycleBin';
 
@@ -220,7 +220,7 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ onBack }) => {
                       reader.onload = async () => {
                         const base64Data = reader.result as string;
                         try {
-                          const response = await fetch(`${API_BASE_URL}/api/upload-excel`, {
+                          const response = await customFetch(`${API_BASE_URL}/api/upload-excel`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ fileData: base64Data, type: 'staff' })

@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "madrassa_tenant": {
+      "title": "Madrassa Tenant License",
+      "description": "Information about a paid licensed madrassa software deployment.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique billing/merchant identification string" },
+        "madrassaName": { "type": "string", "description": "The name of the paying jamia" },
+        "email": { "type": "string", "description": "Credential username or administrative contact email" },
+        "password": { "type": "string", "description": "Credential password" },
+        "purchaseDate": { "type": "string", "description": "Purchase transaction date" },
+        "expiryDate": { "type": "string", "description": "Subscribed license expiry timetable" },
+        "status": { "type": "string", "enum": ["active", "inactive"], "description": "Control flag to activate or de-authorize" },
+        "priceCharged": { "type": "number", "description": "Financial sales charge price" },
+        "ownerPhone": { "type": "string", "description": "Primary administrator billing cell line" },
+        "allowedModules": { "type": "array", "description": "List of permitted features/modules" }
+      },
+      "required": ["id", "madrassaName", "email", "password", "expiryDate", "status"]
+    }
+  },
+  "firestore": {
+    "/licensed_madrasas/{madrassaId}": {
+      "schema": "madrassa_tenant",
+      "description": "Collection storing billing accounts and credentials of all paying client madrasas"
+    }
+  }
+}

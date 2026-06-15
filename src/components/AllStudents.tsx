@@ -8,7 +8,7 @@ import StudentManagement from './StudentManagement';
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { addToRecycleBin } from './RecycleBin';
 import { syncToServer } from '../syncService';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 import VoiceInput from './VoiceInput';
 
 interface Student {
@@ -207,7 +207,7 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
                   reader.onload = async () => {
                     const base64Data = reader.result as string;
                     try {
-                      const response = await fetch(`${API_BASE_URL}/api/upload-excel`, {
+                      const response = await customFetch(`${API_BASE_URL}/api/upload-excel`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ fileData: base64Data, type: 'student' })

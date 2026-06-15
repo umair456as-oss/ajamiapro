@@ -23,3 +23,21 @@ export const resolveApiUrl = (url: string) => {
   return `${API_BASE_URL}/${url}`;
 };
 
+// Global Fetch Interceptor to forward multi-tenant X-Madrassa-ID headers
+export const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const madrassaId = typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null;
+  let newInit = init;
+  if (madrassaId) {
+    newInit = init ? { ...init } : {};
+    const headers = new Headers(newInit.headers || {});
+    if (!headers.has('X-Madrassa-ID') && !headers.has('x-madrassa-id')) {
+      headers.set('X-Madrassa-ID', madrassaId);
+    }
+    newInit.headers = headers;
+  }
+  return fetch(input, newInit);
+};
+
+
+
+

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, customFetch } from './config';
 
 // Safe JSON parser helper
 const safeParse = (key: string, defaultValue: any) => {
@@ -35,7 +35,7 @@ const SYNC_KEYS = [
  */
 export async function fetchCentralData(): Promise<any> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/data`);
+    const response = await customFetch(`${API_BASE_URL}/api/data`);
     if (response.ok) {
       const data = await response.json();
       return data;
@@ -61,7 +61,7 @@ export async function updateCentralKey(key: string, value: any): Promise<boolean
   window.dispatchEvent(new Event('storage_updated'));
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/save-key`, {
+    const response = await customFetch(`${API_BASE_URL}/api/save-key`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, value })
@@ -80,7 +80,7 @@ export async function updateCentralKey(key: string, value: any): Promise<boolean
 export async function syncFromServer(): Promise<any> {
   console.log('Initiating Pull Sync from server...');
   try {
-    const response = await fetch(`${API_BASE_URL}/api/data`);
+    const response = await customFetch(`${API_BASE_URL}/api/data`);
     if (response.ok) {
       const data = await response.json();
       if (data && typeof data === 'object') {
@@ -125,7 +125,7 @@ export async function syncToServer(): Promise<boolean> {
   });
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/sync`, {
+    const response = await customFetch(`${API_BASE_URL}/api/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

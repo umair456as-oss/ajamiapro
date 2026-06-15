@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Upload, Book, User, CheckCircle } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 
 interface PaperUploaderProps {
   onBack: () => void;
@@ -59,7 +59,7 @@ export default function PaperUploader({ onBack }: PaperUploaderProps) {
         
         try {
           // Upload to server
-          const response = await fetch(`${getApiUrl()}/api/upload-paper`, {
+          const response = await customFetch(`${getApiUrl()}/api/upload-paper`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

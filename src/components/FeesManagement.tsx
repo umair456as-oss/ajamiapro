@@ -4,7 +4,7 @@ import {
   Wallet, User, Calendar, Receipt, Plus, Minus, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 
 interface FeesManagementProps {
   onBack: () => void;
@@ -69,7 +69,7 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
 
   const fetchDailyCollection = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/fees-collection-report`);
+      const res = await customFetch(`${API_BASE_URL}/api/fees-collection-report`);
       const data = await res.json();
       setDailyTotal(data || { dailyTotal: 0, count: 0 });
     } catch (err) {
@@ -80,7 +80,7 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
   const handleSearch = async () => {
     if (!searchTerm) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/data`);
+      const response = await customFetch(`${API_BASE_URL}/api/data`);
       const data = await response.json();
       const results = data.students.filter((s: Student) => 
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -100,7 +100,7 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
     
     // Fetch Arrears from history
     try {
-      const res = await fetch(`${API_BASE_URL}/api/student-fees/${student.regNo}`);
+      const res = await customFetch(`${API_BASE_URL}/api/student-fees/${student.regNo}`);
       const history = await res.json();
       // Logic: if they have history, maybe calculate pending? 
       // For now, let's just let the user enter arrears manually or fetch last unpaid.
@@ -128,7 +128,7 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/save-fee`, {
+      const response = await customFetch(`${API_BASE_URL}/api/save-fee`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(transaction)

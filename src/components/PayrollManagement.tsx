@@ -4,7 +4,7 @@ import {
   Download, FileText, User, Calculator, Calendar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 
 interface PayrollProps {
   onBack: () => void;
@@ -55,7 +55,7 @@ const PayrollManagement: React.FC<PayrollProps> = ({ onBack }) => {
 
   const fetchStaff = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/data`);
+      const response = await customFetch(`${API_BASE_URL}/api/data`);
       const data = await response.json();
       if (data.staff) {
         setStaff(data.staff);
@@ -99,7 +99,7 @@ const PayrollManagement: React.FC<PayrollProps> = ({ onBack }) => {
     };
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/save-salary`, {
+      const response = await customFetch(`${API_BASE_URL}/api/save-salary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(record)

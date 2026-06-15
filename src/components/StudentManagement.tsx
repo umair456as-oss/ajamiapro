@@ -8,7 +8,7 @@ import {
   RefreshCw, Check, Download
 } from 'lucide-react';
 import { exportToExcel, importFromExcel } from '../excelUtils';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 import VoiceInput from './VoiceInput';
 
 interface StudentManagementProps {
@@ -196,7 +196,7 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
     console.log('Initiating Secure Save for:', formData.name);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/add-student`, {
+      const response = await customFetch(`${API_BASE_URL}/api/add-student`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

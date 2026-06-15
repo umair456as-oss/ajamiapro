@@ -4,8 +4,9 @@ import {
   ShieldCheck, UserCircle, QrCode, Trash2, RefreshCcw, Plus,
   Download, Upload, AlertCircle
 } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, customFetch } from '../config';
 import AccountManagement from './AccountManagement';
+import SuperAdminPanel from './SuperAdminPanel';
 
 interface SettingsProps {
   onBack: () => void;
@@ -286,6 +287,8 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     }
   };
 
+  const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true' || localStorage.getItem('currentUser') === 'jamiaarabiasirajululoomjabori@gmail.com';
+
   const tabs = [
     { id: 'basic', label: 'بنیادی ترتیبات' },
     { id: 'registration', label: 'رجسٹریشن نمبر ترتیبات' },
@@ -293,6 +296,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     { id: 'account', label: 'اکاؤنٹ مینجمنٹ' },
     { id: 'online', label: 'آن لائن داخلہ فارم' },
     { id: 'system', label: 'نظام کی ترتیبات' },
+    ...(isSuperAdmin ? [{ id: 'superadmin', label: 'سپر ایڈمن کنٹرول (مدارس مینیجر)' }] : []),
   ];
 
   const renderSubView = () => {
@@ -1541,7 +1545,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                       const formData = new FormData();
                                       formData.append('backup', e.target.files[0]);
                                       try {
-                                        const resp = await fetch(`${API_BASE_URL}/api/restore`, {
+                                        const resp = await customFetch(`${API_BASE_URL}/api/restore`, {
                                           method: 'POST',
                                           body: formData
                                         });
@@ -1592,7 +1596,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                       const formData = new FormData();
                                       formData.append('db_file', e.target.files[0]);
                                       try {
-                                        const resp = await fetch(`${API_BASE_URL}/api/import-db`, {
+                                        const resp = await customFetch(`${API_BASE_URL}/api/import-db`, {
                                           method: 'POST',
                                           body: formData
                                         });
@@ -1654,6 +1658,10 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'superadmin' && isSuperAdmin && (
+            <SuperAdminPanel />
           )}
         </div>
       </div>

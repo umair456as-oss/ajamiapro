@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net Default-Deny-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Strict security on Madrasas collection
+    match /licensed_madrasas/{madrassaId} {
+      allow read, write: if request.auth != null && request.auth.uid != null;
+    }
+  }
+}
