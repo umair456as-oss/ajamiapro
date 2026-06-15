@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Inter:wght@400;500;600;700&family=Amiri:wght@400;700&display=swap');
+  
+  @font-face {
+    font-family: 'Jameel Noori Nastaleeq';
+    src: url('https://cdn.jsdelivr.net/gh/tariq-abdullah/urdu-web-font-CDN/JameelNooriNastaleeq.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root {
+    --color-bg: #F4F7F6;
+    --color-primary: #2563EB;
+    --color-primary-hover: #1D4ED8;
+    --color-text-main: #1E293B;
+    --color-text-muted: #64748B;
+    --color-border: #E2E8F0;
+    --color-white: #FFFFFF;
+    --sidebar-gradient: linear-gradient(180deg, #1E40AF 0%, #3B82F6 100%);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+  }
+
+  .font-urdu {
+    font-family: 'Jameel Noori Nastaleeq', 'Noto Nastaliq Urdu', serif;
+    line-height: 2.2;
+  }
+
+  .font-classic {
+    font-family: 'Amiri', serif;
+    line-height: 1.8;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+  }
+
+  .sidebar-gradient {
+    background: var(--sidebar-gradient);
+  }
+
+  .card-widget {
+    @apply bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer;
+  }
+
+  .widget-icon {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors;
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    body {
+      background: white !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    @page {
+      size: auto;
+      margin: 0;
+    }
+
+    #exam-paper, 
+    #admission-form-printable,
+    .id-card-container {
+      box-shadow: none !important;
+      border: none !important;
+    }
+  }
+}
+
+@layer components {
+  .input-field {
+    @apply w-full h-11 px-4 rounded-lg border border-slate-200 bg-slate-50 text-sm transition-all outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10;
+  }
+  
+  .btn-primary {
+    @apply w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all active:scale-[0.98];
+  }
+
+  .social-btn {
+    @apply flex-1 h-11 border border-slate-200 bg-white rounded-lg flex items-center justify-center gap-2 text-sm font-medium text-slate-900 hover:bg-slate-50 transition-colors;
+  }
+}
+
