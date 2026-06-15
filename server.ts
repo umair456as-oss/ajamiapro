@@ -222,6 +222,13 @@ app.post('/api/login', async (req, res) => {
     }
 
     if (foundSubUser) {
+      if (foundSubUser.status === 'rejected') {
+        return res.status(403).json({ success: false, error: 'آپ کا اکاؤنٹ مسترد کر دیا گیا ہے۔' });
+      }
+      if (foundSubUser.status !== 'accepted') {
+        return res.status(403).json({ success: false, error: 'آپ کا اکاؤنٹ ابھی ایڈمن کی منظوری کا منتظر ہے۔' });
+      }
+
       let jamiaName = 'جامعہ عربیہ سراج العلوم';
       let expiryDate = '';
       let allowedModules = ['dashboard', 'students', 'all_students', 'attendance', 'academics', 'exams', 'paper_maker', 'paper_uploader', 'finance', 'staff', 'settings'];
@@ -252,6 +259,8 @@ app.post('/api/login', async (req, res) => {
         user: { 
           username: foundSubUser.username || foundSubUser.email || foundSubUser.name || email, 
           role: foundSubUser.role || 'Teacher',
+          status: foundSubUser.status || 'pending',
+          paymentStatus: foundSubUser.paymentStatus || 'unpaid',
           madrassaId: foundMadrassaId || undefined,
           jamiaName,
           expiryDate,

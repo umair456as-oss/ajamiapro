@@ -125,7 +125,12 @@ export default function AccountManagement() {
 
     // 1. Get latest from localStorage to avoid overwriting
     const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    const updatedUsers = [...currentUsers, { id: Date.now(), ...newUser }];
+    const updatedUsers = [...currentUsers, { 
+      id: Date.now(), 
+      ...newUser, 
+      status: 'pending', 
+      paymentStatus: 'unpaid' 
+    }];
     
     // 2. Update local state and localStorage
     setUsers(updatedUsers);
@@ -137,7 +142,22 @@ export default function AccountManagement() {
     // 4. Notify and sync
     window.dispatchEvent(new Event('storage_updated'));
     await syncToServer(); // Ensure it goes to the server
-    showNotice('success', 'اکاؤنٹ کامیابی سے بن گیا');
+    showNotice('success', 'اکاؤنٹ کے لیے درخواست بھیج دی گئی');
+  };
+
+  const handleUpdateUserStatus = async (id: number, status: string, paymentStatus?: string) => {
+    const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    const updatedUsers = currentUsers.map((u: any) => {
+      if (u.id === id) {
+        return { ...u, status: status || u.status, paymentStatus: paymentStatus || u.paymentStatus || 'unpaid' };
+      }
+      return u;
+    });
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    window.dispatchEvent(new Event('storage_updated'));
+    await syncToServer();
+    showNotice('success', 'اکاؤنٹ کی تفصیلات اپ ڈیٹ ہو گئیں');
   };
 
   const handleDeleteUser = async (id: number) => {
@@ -238,19 +258,35 @@ export default function AccountManagement() {
               <thead className="bg-slate-800 text-white">
                 <tr>
                   <th className="py-4 px-6 font-bold">یوزر نیم</th>
-                  <th className="py-4 px-6 font-bold">پاسورڈ</th>
-                  <th className="py-4 px-6 font-bold">رول</th>
+                  <th className="py-4 px-6 font-bold">اسٹیٹس</th>
+                  <th className="py-4 px-6 font-bold">پیمنٹ</th>
                   <th className="py-4 px-6 font-bold">عمل</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6 font-bold text-slate-800">{u.username}</td>
-                    <td className="py-4 px-6 font-mono text-slate-600">{u.password}</td>
-                    <td className="py-4 px-6 font-bold text-blue-600">{u.role}</td>
+                    <td className="py-4 px-6 font-bold text-slate-800">{u.username} ({u.role})</td>
                     <td className="py-4 px-6">
-                      <button onClick={() => handleDeleteUser(u.id)} className="bg-red-100 text-red-600 px-3 py-1 rounded text-sm hover:bg-red-200 transition-colors font-bold">ڈیلیٹ</button>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        u.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' : 
+                        u.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {u.status || 'pending'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        u.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {u.paymentStatus || 'unpaid'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 flex gap-2">
+                       {u.status !== 'accepted' && <button onClick={() => handleUpdateUserStatus(u.id, 'accepted')} className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">قبول کریں</button>}
+                       {u.status !== 'rejected' && <button onClick={() => handleUpdateUserStatus(u.id, 'rejected')} className="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">مسترد</button>}
+                       {u.paymentStatus !== 'paid' && <button onClick={() => handleUpdateUserStatus(u.id, u.status, 'paid')} className="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200">ادائیگی کی</button>}
+                       <button onClick={() => handleDeleteUser(u.id)} className="bg-slate-100 text-slate-600 px-3 py-1 rounded text-xs font-bold hover:bg-slate-200">ڈیلیٹ</button>
                     </td>
                   </tr>
                 ))}

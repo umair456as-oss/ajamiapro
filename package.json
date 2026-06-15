@@ -25,6 +25,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^4.22.1",
+    "firebase": "^12.14.0",
     "lucide-react": "^0.546.0",
     "mongodb": "^7.2.0",
     "mongoose": "^9.6.1",

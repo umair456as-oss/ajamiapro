@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, customFetch } from '../config';
+import { googleSignIn } from '../lib/auth';
+
 
 interface AuthProps {
   onLogin: () => void;
@@ -80,6 +82,8 @@ export default function AuthSystem({ onLogin }: AuthProps) {
       if (response.ok && result.success) {
         localStorage.setItem('currentUser', result.user.username);
         localStorage.setItem('currentUserRole', result.user.role || 'Admin');
+        localStorage.setItem('userStatus', result.user.status || 'pending');
+        localStorage.setItem('paymentStatus', result.user.paymentStatus || 'unpaid');
         localStorage.setItem('isLoggedIn', 'true');
         
         if (result.user.isSuperAdmin) {
@@ -272,19 +276,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
               )}
             </button>
 
-            {isLogin && (
-              <button 
-                type="button"
-                onClick={() => {
-                  setEmail('jamiaarabiasirajululoomjabori@gmail.com');
-                  setPassword('jamiaarabiasirajululoomjabori');
-                }}
-                className="w-full mt-2 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-              >
-                <Landmark className="w-4 h-4" />
-                Admin Login
-              </button>
-            )}
+            {/* Removed Admin Login Button as requested */}
           </form>
 
           <div className="mt-8">
@@ -298,10 +290,30 @@ export default function AuthSystem({ onLogin }: AuthProps) {
             </div>
 
             <div className="flex gap-3">
-              <button className="social-btn">
+              <button 
+                type="button"
+                onClick={async () => {
+                   setIsLoading(true);
+                   try {
+                     const result = await googleSignIn();
+                     if (result) {
+                        localStorage.setItem('currentUser', result.user.email || 'Google User');
+                        localStorage.setItem('isLoggedIn', 'true');
+                        onLogin();
+                        navigate('/dashboard');
+                     }
+                   } catch (err) {
+                     setError('Google Sign-In failed');
+                   } finally {
+                     setIsLoading(false);
+                   }
+                }}
+                className="social-btn"
+              >
                 <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
                 <span>Google</span>
               </button>
+
               <button className="social-btn">
                 <img src="https://github.com/favicon.ico" className="w-4 h-4" alt="GitHub" />
                 <span>GitHub</span>
