@@ -934,6 +934,14 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     }
   };
 
+  if (activeTab === 'superadmin' && isSuperAdmin) {
+    return (
+      <div className="fixed inset-0 bg-slate-50 z-[9999] overflow-hidden flex flex-col">
+        <SuperAdminPanel onClose={() => setActiveTab('basic')} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative">
       {/* Header */}

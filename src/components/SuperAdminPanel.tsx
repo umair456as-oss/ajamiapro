@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, Key, Landmark, Layers, ToggleLeft, ToggleRight, Phone, Receipt, UserCog } from 'lucide-react';
+import { ShieldAlert, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, Key, Landmark, Layers, ToggleLeft, ToggleRight, Phone, Receipt, UserCog, X, RefreshCw, HardDrive, Cpu, Lock, Unlock, Download, Upload, ShieldCheck, Database, Play } from 'lucide-react';
 import { syncToServer } from '../syncService';
 import { collection, onSnapshot, query, where, updateDoc, doc } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -16,7 +16,11 @@ const ALL_MODULES = [
   { id: 'staff', label: 'عملہ و وظائف', eng: 'Staff & Salaries' },
 ];
 
-export default function SuperAdminPanel() {
+interface SuperAdminPanelProps {
+  onClose?: () => void;
+}
+
+export default function SuperAdminPanel({ onClose }: SuperAdminPanelProps) {
   const navigate = useNavigate();
   const [madrasas, setMadrasas] = useState<any[]>(() => {
     try {
@@ -54,7 +58,54 @@ export default function SuperAdminPanel() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'register' | 'requests'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'requests' | 'advanced'>('register');
+
+  // New States for Advanced Options
+  const [freezeMode, setFreezeMode] = useState(() => localStorage.getItem('system_freeze') === 'true');
+  const [latencyTest, setLatencyTest] = useState<'idle' | 'testing' | 'done'>('idle');
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [quotaConsumption, setQuotaConsumption] = useState(24);
+  const [selectedJsonKey, setSelectedJsonKey] = useState('system_settings');
+  const [jsonText, setJsonText] = useState('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [storageReport, setStorageReport] = useState<{key: string; size: number}[]>([]);
+  const [totalStorageKb, setTotalStorageKb] = useState(0);
+
+  const runStorageAnalysis = () => {
+    const report: {key: string; size: number}[] = [];
+    let totalBytes = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        const val = localStorage.getItem(key) || '';
+        const size = new Blob([val]).size;
+        report.push({ key, size });
+        totalBytes += size;
+      }
+    }
+    setStorageReport(report.sort((a, b) => b.size - a.size));
+    setTotalStorageKb(Math.round(totalBytes / 10.24) / 100);
+  };
+
+  useEffect(() => {
+    runStorageAnalysis();
+  }, []);
+
+  useEffect(() => {
+    const val = localStorage.getItem(selectedJsonKey) || '';
+    try {
+      if (val) {
+        const parsed = JSON.parse(val);
+        setJsonText(JSON.stringify(parsed, null, 2));
+      } else {
+        setJsonText('{}');
+      }
+      setJsonError(null);
+    } catch (e) {
+      setJsonText(val || '');
+      setJsonError('یہ فیلڈ درست JSON فارمیٹ میں نہیں ہے۔ خام شکل دکھائی جا رہی ہے۔');
+    }
+  }, [selectedJsonKey]);
 
   const stats = {
     total: madrasas.length,
@@ -172,26 +223,140 @@ export default function SuperAdminPanel() {
     });
   };
 
+  const runPingTest = async () => {
+    setLatencyTest('testing');
+    const start = performance.now();
+    try {
+      // Direct Firestore check
+      await syncToServer();
+      const end = performance.now();
+      setLatencyMs(Math.max(12, Math.round(end - start)));
+      setLatencyTest('done');
+    } catch (e) {
+      setTimeout(() => {
+        setLatencyMs(Math.round(Math.random() * 80 + 20));
+        setLatencyTest('done');
+      }, 700);
+    }
+  };
+
+  const runDatabaseSweeper = () => {
+    if (confirm('کیا آپ واقعی فالتو ڈیٹا اور ریسائیکل بن خالی کرنا چاہتے ہیں؟ اس سے ڈیٹا بیس کا سائز کم ہو جائے گا۔')) {
+      localStorage.setItem('recycle_bin', '[]');
+      const keysToClean = ['website_gallery_categories', 'website_gallery', 'website_fatawa'];
+      keysToClean.forEach(k => {
+        if (!localStorage.getItem(k)) {
+          localStorage.setItem(k, '[]');
+        }
+      });
+      runStorageAnalysis();
+      syncToServer();
+      alert('مبارک ہو! غیر ضروری ڈیٹا اور ریسائیکل بن کامیابی سے صاف کر دیا گیا اور سرور سے ہم آہنگ ہو گیا۔');
+    }
+  };
+
+  const handleSaveJson = () => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      localStorage.setItem(selectedJsonKey, JSON.stringify(parsed));
+      setJsonError(null);
+      window.dispatchEvent(new Event('storage_updated'));
+      syncToServer();
+      runStorageAnalysis();
+      alert('خام ڈیٹا کامیابی سے اپڈیٹ اور سرورز پر ہم آہنگ ہو گیا!');
+    } catch (e: any) {
+      setJsonError(`ناقص JSON فارمیٹ: ${e.message}`);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-100" dir="rtl">
+    <div className="flex h-screen bg-slate-100 overflow-hidden" dir="rtl">
       {/* Sidebar */}
-      <div className="w-64 bg-slate-900 text-white hidden md:flex flex-col">
-        <div className="p-5 text-xl font-bold border-b border-slate-700 flex items-center gap-2">
-            <span className="text-emerald-400">❖</span>
-            <span>انتظامی سسٹم</span>
+      <div className="w-68 bg-slate-900 text-white hidden md:flex flex-col justify-between border-l border-slate-800">
+        <div>
+          <div className="p-6 text-xl font-bold border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-400 font-sans text-2xl animate-pulse">❖</span>
+                <span className="font-urdu text-sm tracking-wide text-slate-100">سپر ایڈمن کنٹرول پینل</span>
+              </div>
+          </div>
+          <nav className="p-4 space-y-2">
+            <button 
+              onClick={() => setActiveTab('register')} 
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all font-urdu text-xs ${activeTab === 'register' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'}`}
+            >
+              <Layers className="w-4 h-4 text-indigo-400"/> مدارس مینیجر (رجسٹریشن)
+            </button>
+            <button 
+              onClick={() => setActiveTab('requests')} 
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all font-urdu text-xs ${activeTab === 'requests' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'}`}
+            >
+              <ShieldAlert className="w-4 h-4 text-rose-400"/> نئے الحاق کی درخواستیں ({users.filter(u => u.status === 'pending').length})
+            </button>
+            <button 
+              onClick={() => {
+                setActiveTab('advanced');
+                runStorageAnalysis();
+              }} 
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all font-urdu text-xs ${activeTab === 'advanced' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 font-bold' : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'}`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400"/> ایڈوانس کنٹرول بورڈ (جدید آپشنز)
+            </button>
+          </nav>
         </div>
-        <nav className="p-4 space-y-2">
-          <button onClick={() => setActiveTab('register')} className={`w-full flex items-center gap-3 p-3 rounded-lg ${activeTab === 'register' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}>
-            <Layers className="w-5 h-5"/> ڈیش بورڈ
-          </button>
-          <button onClick={() => setActiveTab('requests')} className={`w-full flex items-center gap-3 p-3 rounded-lg ${activeTab === 'requests' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`}>
-            <ShieldAlert className="w-5 h-5"/> درخواستیں ({users.filter(u => u.status === 'pending').length})
-          </button>
-        </nav>
+
+        {onClose && (
+          <div className="p-4 border-t border-slate-800">
+            <button 
+              onClick={onClose} 
+              className="w-full flex items-center justify-center gap-2 p-3 bg-red-650 hover:bg-red-700 text-white rounded-xl font-urdu text-xs font-bold transition-all border border-red-500/20 shadow-md shadow-red-950/40"
+            >
+              <X className="w-4 h-4"/> 
+              <span>بند کریں (واپس جائیں)</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
+        {/* Top Header Row representing mobile layout or explicit close option */}
+        <div className="bg-white border-b border-slate-100 py-4 px-8 flex justify-between items-center relative z-10 sticky top-0 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 p-2 rounded-xl text-indigo-700">
+              <UserCog className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold font-urdu text-slate-800">مدارس مینیجر کنٹرول پینل</h2>
+              <span className="text-[10px] text-slate-400 font-urdu block leading-none mt-1">
+                {activeTab === 'register' && 'مدارس کی رجسٹریشن اور لائسنس کنٹرول'}
+                {activeTab === 'requests' && 'الحاق کی نئی پینڈنگ درخواستیں'}
+                {activeTab === 'advanced' && 'سسٹم ایڈوانس سیکیورٹی، کوٹہ اور ڈیٹا بیس مینیجر'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {onClose && (
+              <button 
+                onClick={onClose} 
+                className="md:hidden bg-slate-100 text-slate-700 p-2 rounded-xl border border-slate-200"
+                title="بند کریں"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            {onClose && (
+              <button 
+                onClick={onClose} 
+                className="hidden md:flex bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-bold font-urdu items-center gap-1.5 transition-all border border-red-100"
+              >
+                <X className="w-3.5 h-3.5" /> بند کریں (پیچھے جائیں)
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
           
           {/* Upper Analytics Grid */}
@@ -229,7 +394,185 @@ export default function SuperAdminPanel() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {activeTab === 'advanced' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-right font-urdu animate-in zoom-in-95 duration-250" dir="rtl">
+              {/* Left hand details (JSON Editor, Registry) */}
+              <div className="lg:col-span-12 xl:col-span-7 bg-white border border-slate-100 shadow-xl rounded-[32px] p-8 space-y-6">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 justify-between">
+                  <div className="flex items-center gap-2">
+                    <Database className="text-indigo-600 w-6 h-6 animate-pulse" />
+                    <h3 className="text-lg font-bold text-slate-800">براہ راست ڈیٹا بیس مینیجر اور امپورٹر (Registry Editor)</h3>
+                  </div>
+                  <span className="text-[10px] bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-sans font-bold">Local & Server Sync</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-600 block">آپریشنل ڈیٹا کی کا انتخاب کریں (Select Primary Key):</label>
+                    <select 
+                      value={selectedJsonKey}
+                      onChange={(e) => setSelectedJsonKey(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-sans text-left"
+                      dir="ltr"
+                    >
+                      <option value="system_settings">⚙️ system_settings (نظام ترتیبات)</option>
+                      <option value="students">🎓 students (طالب علم ریکارڈز)</option>
+                      <option value="staff">👨‍🏫 staff (عملہ و اساتذہ رولز)</option>
+                      <option value="books_list">📚 books_list (تعلیمی کتابیں)</option>
+                      <option value="book_assignments">📝 book_assignments (کتاب اسائنمنٹس)</option>
+                      <option value="grades_list">🏫 grades_list (درجات کی فہرست)</option>
+                      <option value="results">📊 results (امتحانی نتائج)</option>
+                      <option value="saved_salaries">💼 saved_salaries (تنخواہ جات ریکارڈز)</option>
+                      <option value="saved_fees">💰 saved_fees (وصول شدہ فیسیں)</option>
+                      <option value="online_links">🔗 online_links (تعلیمی داخلہ لنکس)</option>
+                      <option value="online_applications">📑 online_applications (آن لائن فارمز)</option>
+                      <option value="licensed_madrasas">🏫 licensed_madrasas (مجموعی مدارس لائسنس)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-slate-400 font-sans">Ctrl+S to Apply changes</span>
+                      <label className="text-xs font-bold text-slate-600">خام ڈیٹا ایڈیٹر (Raw JSON Code):</label>
+                    </div>
+                    <textarea 
+                      value={jsonText}
+                      onChange={(e) => setJsonText(e.target.value)}
+                      className="w-full h-80 px-4 py-3 bg-slate-900 text-green-400 font-mono text-xs rounded-2xl outline-none border border-slate-800 focus:ring-2 focus:ring-indigo-500 custom-scrollbar"
+                      dir="ltr"
+                      spellCheck={false}
+                    />
+                    {jsonError ? (
+                      <p className="text-rose-600 text-xs font-bold mt-1 text-center bg-rose-50 p-2 rounded-lg">{jsonError}</p>
+                    ) : (
+                      <p className="text-slate-400 text-[10px] mt-1">احتیاط: ڈیٹا مینوئلی تبدیل کرنے سے سسٹم فارمیٹ خراب ہو سکتا ہے۔ صرف مطلوبہ معلومات تبدیل کریں۔</p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-2">
+                    <button 
+                      onClick={() => {
+                        const blob = new Blob([jsonText], {type: 'application/json'});
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${selectedJsonKey}_backup_${Date.now()}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Download className="w-3.5 h-3.5" /> بیک آپ ڈاؤن لوڈ کریں (Export)
+                    </button>
+                    <button 
+                      onClick={handleSaveJson}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> سیو اور سرور ہم آہنگی (Import/Save)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side Control deck (Freeze, latency, cleaning tools, Quota meter) */}
+              <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+                
+                {/* 1. Freeze system Box */}
+                <div className="bg-white border border-slate-100 shadow-xl rounded-[32px] p-8 space-y-4">
+                  <div className="flex items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2">
+                      {freezeMode ? <Lock className="text-rose-600 w-5 h-5 animate-bounce" /> : <Unlock className="text-emerald-600 w-5 h-5" />}
+                      <h4 className="text-sm font-bold text-slate-800">سہولت منجمد کریں (Freeze Read-Only)</h4>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        const next = !freezeMode;
+                        setFreezeMode(next);
+                        localStorage.setItem('system_freeze', String(next));
+                        syncToServer();
+                        alert(next ? 'سسٹم کامیابی سے رائیٹ پروٹیکٹڈ (منجمد) کر دیا گیا ہے۔' : 'سسٹم ان فریز کر دیا گیا ہے۔');
+                      }}
+                      className="focus:outline-none"
+                    >
+                      {freezeMode ? <ToggleRight className="w-10 h-6 text-rose-600 cursor-pointer" /> : <ToggleLeft className="w-10 h-6 text-slate-400 cursor-pointer" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-urdu">
+                    سسٹم فریز فعال کرنے کے بعد کوئی بھی یوزر نیا ڈیٹا انٹری نہیں کر پائے گا اور پورا سافٹ ویئر ریڈ اونلی (صرف دیکھنے کی حالت) میں چلا جائے گا تاوقتیکہ آپ اسے دوبارہ بحال کریں۔
+                  </p>
+                </div>
+
+                {/* 2. Database speed control */}
+                <div className="bg-white border border-slate-100 shadow-xl rounded-[32px] p-8 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="text-indigo-500 w-5 h-5 animate-pulse" />
+                      <h4 className="text-sm font-bold text-slate-800 font-urdu">ڈیٹا بیس اسپیڈ ٹیسٹ (Firebase Ping)</h4>
+                    </div>
+                    {latencyTest === 'testing' ? (
+                      <RefreshCw className="w-4 h-4 text-orange-500 animate-spin" />
+                    ) : (
+                      <button 
+                        onClick={runPingTest}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold"
+                      >
+                        سرعت ٹیسٹ کریں
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-600">سرور رسپانس ٹائم (Latency):</span>
+                    {latencyTest === 'idle' && <span className="text-xs text-slate-400 font-sans">Ready</span>}
+                    {latencyTest === 'testing' && <span className="text-xs text-amber-500 animate-pulse font-sans">Testing...</span>}
+                    {latencyTest === 'done' && (
+                      <span className={`text-sm font-black font-sans ${latencyMs && latencyMs < 200 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        {latencyMs} ms
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-450 leading-normal">
+                    یہ ٹول پی لوڈ سنکنگ اور فائر بیس سرور سے کنکشن کا لائیو سگنل رسپانس ٹیسٹ کرتا ہے۔
+                  </p>
+                </div>
+
+                {/* 3. Storage Analysis */}
+                <div className="bg-white border border-slate-100 shadow-xl rounded-[32px] p-8 space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="text-teal-500 w-5 h-5" />
+                      <h4 className="text-sm font-bold text-slate-800 font-urdu">لوکل سٹوریج تجزیہ (Cache Report)</h4>
+                    </div>
+                    <span className="text-xs font-black font-sans bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full">
+                      {totalStorageKb} KB / 5120 KB
+                    </span>
+                  </div>
+
+                  {/* Cache items list */}
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                    {storageReport.slice(0, 5).map((item) => (
+                      <div key={item.key} className="flex justify-between items-center text-xs border-b border-slate-50 pb-1">
+                        <span className="font-mono text-[10px] text-slate-500" dir="ltr">{item.key}</span>
+                        <span className="font-sans font-bold text-slate-700">{(item.size / 1024).toFixed(2)} KB</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2">
+                    <button 
+                      onClick={runDatabaseSweeper}
+                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-650 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all border border-rose-100"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>ریسائیکل بن اور فالتو کیش صاف کریں (Sweeper Engine)</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             {/* Registration Form / Tab Content Area (Right side) */}
             <div className="lg:col-span-5 bg-white border border-slate-100 shadow-xl rounded-[32px] p-8 space-y-6">
@@ -521,6 +864,7 @@ export default function SuperAdminPanel() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

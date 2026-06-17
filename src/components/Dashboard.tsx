@@ -361,7 +361,22 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
               'saved_fees',
               'role_permissions',
               'users',
-              'recycle_bin'
+              'recycle_bin',
+              'books_list',
+              'book_assignments',
+              'grades_list',
+              'addresses',
+              'districts',
+              'madrasas',
+              'exams',
+              'hours',
+              'expulsions',
+              'gradeSettings',
+              'minPositionPercentage',
+              'positions',
+              'online_links',
+              'online_applications',
+              'licensed_madrasas'
             ];
 
             // Update local storage keys if they differ
