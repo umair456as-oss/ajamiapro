@@ -5,6 +5,7 @@ import {
   Download, Upload, AlertCircle
 } from 'lucide-react';
 import { API_BASE_URL, customFetch } from '../config';
+import { syncToServer } from '../syncService';
 import AccountManagement from './AccountManagement';
 import SuperAdminPanel from './SuperAdminPanel';
 
@@ -41,6 +42,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
   const [gradingTab, setGradingTab] = useState<'grades' | 'positions'>('grades');
   const [addressTab, setAddressTab] = useState<'address' | 'district'>('address');
   const [systemActiveTab, setSystemActiveTab] = useState('basic_monogram');
+  const [isSaving, setIsSaving] = useState(false);
 
   // System Settings State
   const [systemSettings, setSystemSettings] = useState(() => {
@@ -1280,13 +1282,44 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                   </div>
                 </div>
                 <button 
-                  onClick={() => {
-                    alert('ترتیبات محفوظ ہو گئیں!');
+                  disabled={isSaving}
+                  onClick={async () => {
+                    setIsSaving(true);
+                    try {
+                      localStorage.setItem('grades', JSON.stringify(grades));
+                      localStorage.setItem('addresses', JSON.stringify(addresses));
+                      localStorage.setItem('districts', JSON.stringify(districts));
+                      localStorage.setItem('books', JSON.stringify(books));
+                      localStorage.setItem('madrasas', JSON.stringify(madrasas));
+                      localStorage.setItem('exams', JSON.stringify(exams));
+                      localStorage.setItem('hours', JSON.stringify(hours));
+                      localStorage.setItem('expulsions', JSON.stringify(expulsions));
+                      localStorage.setItem('gradeSettings', JSON.stringify(gradeSettings));
+                      localStorage.setItem('minPositionPercentage', String(minPositionPercentage));
+                      localStorage.setItem('positions', JSON.stringify(positions));
+                      localStorage.setItem('online_links', JSON.stringify(onlineLinks));
+                      localStorage.setItem('online_applications', JSON.stringify(onlineApplications));
+                      localStorage.setItem('system_settings', JSON.stringify(systemSettings));
+                      
+                      window.dispatchEvent(new Event('storage_updated'));
+                      
+                      const success = await syncToServer();
+                      if (success) {
+                        alert('مبارک ہو! ترتیبات کامیابی سے محفوظ اور دیگر فعال آلات پر سنک کر دی گئی ہیں۔');
+                      } else {
+                        alert('ترتیبات مقامی طور پر محفوظ ہو چکی ہیں، انٹرنیٹ دستیاب ہوتے ہی خودکار سنک ہو جائیں گی۔');
+                      }
+                    } catch (err) {
+                      console.error('Error saving settings:', err);
+                      alert('معذرت! ترتیبات محفوظ کرنے میں خرابی پیش آئی ہے۔ دوبارہ کوشش کریں۔');
+                    } finally {
+                      setIsSaving(false);
+                    }
                   }}
-                  className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-urdu font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 hover:bg-emerald-700 transition-all active:scale-95"
+                  className={`bg-emerald-600 text-white px-8 py-3 rounded-xl font-urdu font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50`}
                 >
-                   <FileText className="w-4 h-4" />
-                   <span>محفوظ کریں (Save All)</span>
+                   <FileText className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
+                   <span>{isSaving ? 'محفوظ ہو رہا ہے...' : 'محفوظ کریں (Save All)'}</span>
                 </button>
               </div>
 
