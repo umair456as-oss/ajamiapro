@@ -191,6 +191,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     localStorage.setItem('online_links', JSON.stringify(onlineLinks));
     localStorage.setItem('online_applications', JSON.stringify(onlineApplications));
     localStorage.setItem('system_settings', JSON.stringify(systemSettings));
+    window.dispatchEvent(new Event('storage_updated'));
   }, [grades, addresses, districts, books, madrasas, exams, hours, expulsions, gradeSettings, minPositionPercentage, positions, onlineLinks, onlineApplications, systemSettings]);
 
   const generateAdmissionLink = () => {

@@ -61,11 +61,12 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
     try {
       // 1. First check against the requested Main Admin (Local Check for immediate access)
-      if (email === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
+      if (email === 'abdulrehmanhabib.com@gmail.com' && (password === 'abdulrehmanadmin' || password === 'abdulrehmanhabib')) {
         localStorage.setItem('currentUser', email);
         localStorage.setItem('currentUserRole', 'Admin');
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('isSuperAdmin', 'true');
+        localStorage.setItem('userStatus', 'accepted');
         localStorage.removeItem('madrassaId');
         localStorage.removeItem('madrassaJamiaName');
         localStorage.removeItem('madrassaModules');
@@ -349,8 +350,18 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                    try {
                      const result = await googleSignIn();
                      if (result) {
-                        localStorage.setItem('currentUser', result.user.email || 'Google User');
+                        const emailToCheck = (result.user.email || '').toLowerCase().trim();
+                        localStorage.setItem('currentUser', emailToCheck);
                         localStorage.setItem('isLoggedIn', 'true');
+                        if (emailToCheck === 'abdulrehmanhabib.com@gmail.com') {
+                           localStorage.setItem('currentUserRole', 'Admin');
+                           localStorage.setItem('isSuperAdmin', 'true');
+                           localStorage.setItem('userStatus', 'accepted');
+                           localStorage.removeItem('madrassaId');
+                        } else {
+                           localStorage.setItem('currentUserRole', 'Teacher');
+                           localStorage.setItem('userStatus', 'pending');
+                        }
                         onLogin();
                         navigate('/dashboard');
                      }
@@ -380,6 +391,22 @@ export default function AuthSystem({ onLogin }: AuthProps) {
               >
                 {isLogin ? 'Create an account' : 'Sign in'}
               </button>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center justify-center font-urdu" dir="rtl">
+              <span className="text-xs text-slate-500 mb-2">مدارس رجسٹریشن یا سوالات کے لیے رابطہ کریں:</span>
+              <a 
+                href="https://wa.me/923435488319" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-md transition-all hover:brightness-105 active:scale-95"
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                </span>
+                <span>رابطہ برائے رجسٹریشن (واٹس ایپ)</span>
+              </a>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Printer, ChevronRight, ChevronDown } from 'lucide-react';
+import { getMadrassaName } from '../config';
 
 interface AttendanceSheetProps {
   onBack: () => void;
@@ -215,7 +216,7 @@ export default function AttendanceSheetGenerator({ onBack }: AttendanceSheetProp
              <div className="flex border-b-[1.5px] border-black h-16">
                 <div className="w-32 border-l-[1.5px] border-black flex items-center justify-center font-bold text-xl">{selectedGrade}</div>
                 <div className="flex-1 flex items-center justify-center">
-                  <h2 className="text-xl md:text-2xl font-bold font-urdu">یومیہ حاضری شیٹ برائے اساتذہ کرام جامعہ عربیہ سراج العلوم مانسہرہ</h2>
+                  <h2 className="text-xl md:text-2xl font-bold font-urdu">یومیہ حاضری شیٹ برائے اساتذہ کرام {getMadrassaName()}</h2>
                 </div>
              </div>
 

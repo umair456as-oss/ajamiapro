@@ -38,6 +38,24 @@ export const customFetch = async (input: RequestInfo | URL, init?: RequestInit):
   return fetch(input, newInit);
 };
 
+export const getMadrassaName = (): string => {
+  if (typeof window === 'undefined') return 'جامعہ عربیہ سراج العلوم';
+  try {
+    const saved = localStorage.getItem('system_settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.jamiaName) {
+        return parsed.jamiaName;
+      }
+    }
+    const tenantName = localStorage.getItem('madrassaJamiaName');
+    if (tenantName) return tenantName;
+  } catch (e) {
+    console.warn('Error reading madrassa name:', e);
+  }
+  return 'جامعہ عربیہ سراج العلوم';
+};
+
 
 
 

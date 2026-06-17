@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import { getMadrassaName } from '../config';
 
 interface ManualStudentDataProps {
   onBack: () => void;
@@ -58,7 +59,7 @@ export default function ManualStudentData({ onBack }: ManualStudentDataProps) {
 
 <div class="dashboard">
     <div class="print-header">
-        <h1 style="margin:0;">جامعہ عربیہ سراج العلوم</h1>
+        <h1 style="margin:0;">${getMadrassaName()}</h1>
         <h3>فہرست داخل طلبہ (ریکارڈ)</h3>
     </div>
 

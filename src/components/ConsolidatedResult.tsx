@@ -268,8 +268,8 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
                 </div>
 
                 <div className="flex-1 text-center">
-                  <h1 style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', fontSize: '28px', lineHeight: '1.2' }} className="font-bold text-black">
-                    جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ
+                  <h1 style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', fontSize: '28px', lineHeight: '1.2' }} className="font-bold text-black font-urdu">
+                    {systemSettings.jamiaName || 'جامعہ عربیہ سراج العلوم'}
                   </h1>
                   <h2 className="text-base font-bold font-urdu mt-1 text-slate-800">
                     جدول نتائج امتحانات (Examination Result Ledger Sheet)
@@ -421,9 +421,9 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
                   )}
                 </div>
 
-                <div className="flex-1 text-center">
-                  <h1 style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', fontSize: '30px', lineHeight: '1.2' }} className="font-bold text-black">
-                    جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ
+                <div className="flex-1 text-center font-urdu">
+                  <h1 style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', fontSize: '30px', lineHeight: '1.2' }} className="font-bold text-black font-urdu">
+                    {systemSettings.jamiaName || 'جامعہ عربیہ سراج العلوم'}
                   </h1>
                   <h2 className="text-lg font-bold font-urdu mt-1 text-black">
                     جدول نتائج امتحانات (Examination Result Ledger Sheet)

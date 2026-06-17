@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { syncToServer } from '../syncService';
+import { getMadrassaName } from '../config';
 
 interface WebsiteControlProps {
   onBack: () => void;
@@ -19,7 +20,7 @@ export default function WebsiteControl({ onBack }: WebsiteControlProps) {
   const [webSettings, setWebSettings] = useState(() => {
     const saved = localStorage.getItem('website_settings');
     return saved ? JSON.parse(saved) : {
-      heroTitle: 'جامعہ عربیہ سراج العلوم جبوڑی',
+      heroTitle: getMadrassaName(),
       heroSubtitle: 'علم و عمل کا مرکز، روشن مستقبل کی ضمانت',
       marqueeText: 'جامعہ میں سالانہ امتحانات کے داخلے شروع ہو چکے ہیں۔ | مفتی صاحب کا نیا فتویٰ ویب سائٹ پر اپلوڈ کر دیا گیا ہے۔',
       logo: '',
@@ -1592,7 +1593,7 @@ function PublicWebsite({ settings, setSettings, fatawa, gallery, galleryCategori
               )}
               <h4 className="text-xl font-bold">{settings.heroTitle}</h4>
             </div>
-            <p className="text-slate-400 text-sm leading-relaxed">جامعہ عربیہ سراج العلوم جبوڑی ایک عظیم الشان علمی مرکز ہے جو قرآن و سنت کی روشنی میں امتِ مسلمہ کی بہترین رہنمائی کے لیے کوشاں ہے۔</p>
+            <p className="text-slate-400 text-sm leading-relaxed">{settings.heroTitle} ایک عظیم الشان علمی مرکز ہے جو قرآن و سنت کی روشنی میں امتِ مسلمہ کی بہترین رہنمائی کے لیے کوشاں ہے۔</p>
             <div className="flex gap-4">
               {[1, 2, 3, 4].map(i => <div key={i} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center hover:bg-teal-600 transition-all cursor-pointer border border-white/5">FB</div>)}
             </div>

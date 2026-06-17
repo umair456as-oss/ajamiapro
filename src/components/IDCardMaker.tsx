@@ -4,6 +4,7 @@ import {
   ShieldCheck, Search, Users, MapPin, Phone, 
   Droplets, Calendar, Star, QrCode
 } from 'lucide-react';
+import { getMadrassaName } from '../config';
 
 interface IDCardMakerProps {
   onBack: () => void;
@@ -273,7 +274,7 @@ export default function IDCardMaker({ onBack }: IDCardMakerProps) {
                      {/* Stamp Overlay */}
                      <div className="absolute bottom-6 left-2 w-16 h-16 opacity-40 rotate-[-15deg] pointer-events-none">
                         <div className="w-full h-full border-2 border-blue-900 rounded-full flex items-center justify-center text-[5px] font-bold text-blue-900 p-1 text-center">
-                           جامعہ عربیہ سراج العلوم <br/> تصدیق شدہ
+                           {getMadrassaName()} <br/> تصدیق شدہ
                         </div>
                      </div>
                   </div>
@@ -281,7 +282,7 @@ export default function IDCardMaker({ onBack }: IDCardMakerProps) {
                   {/* Title Box (Right) */}
                   <div className="flex-1 flex flex-col items-center justify-center pt-8">
                      <div className="bg-gradient-to-b from-red-600 to-red-800 border-2 border-orange-400 rounded-lg px-2 py-1.5 shadow-lg w-full text-center relative">
-                        <h2 className="text-[16px] font-black text-white leading-none drop-shadow-md">جامعہ عربیہ سراج العلوم</h2>
+                        <h2 className="text-[16px] font-black text-white leading-none drop-shadow-md">{getMadrassaName()}</h2>
                         <span className="absolute -top-1 -right-1 bg-yellow-400 text-[6px] text-red-800 px-1 rounded-full border border-red-800 font-black">رجسٹرڈ</span>
                      </div>
                      
@@ -375,7 +376,7 @@ export default function IDCardMaker({ onBack }: IDCardMakerProps) {
                      <span>0300-5632886</span>
                   </div>
                   <div className="flex flex-col items-center">
-                     <span className="text-[10px] font-black">جامعہ عربیہ سراج العلوم رجسٹرڈ</span>
+                     <span className="text-[10px] font-black font-urdu">{getMadrassaName()} رجسٹرڈ</span>
                      <span className="text-[5px] opacity-70">مدینہ کالونی چنار روڈ مانسہرہ</span>
                   </div>
                   <div className="bg-white text-green-800 text-[6px] font-black px-2 py-0.5 rounded-sm">جاری کردہ</div>

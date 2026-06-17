@@ -338,7 +338,7 @@ export default function PaperMaker({ onBack }: PaperMakerProps) {
                   {/* Center Content */}
                   <div className="flex-1 flex flex-col items-center text-center">
                      <h1 style={{ fontSize: `${layoutSettings.titleSize}px`, fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', lineHeight: '1.2' }} className="font-black text-black mb-2 drop-shadow-sm">
-                        جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ
+                        {systemSettings.jamiaName}
                      </h1>
                      <div className="flex items-center gap-4 mt-1 border-b-2 border-black pb-1 px-8">
                         <span className="text-xl font-bold font-arabic tracking-wide">{currentPaper.examName}</span>
@@ -465,7 +465,7 @@ export default function PaperMaker({ onBack }: PaperMakerProps) {
 
                    {/* Title */}
                    <h1 className="text-5xl font-black mb-2 text-center" style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu' }}>
-                      جامعہ عربیہ سراج العلوم
+                      {systemSettings.jamiaName}
                    </h1>
                    <div className="text-xl font-bold tracking-widest border-b-2 border-black pb-2 px-12 mb-12">
                       جوابی کاپی (امتحانی دفتر)

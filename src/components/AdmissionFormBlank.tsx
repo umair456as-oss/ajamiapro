@@ -1,5 +1,6 @@
 import React from 'react';
 import { Printer, ChevronLeft } from 'lucide-react';
+import { getMadrassaName } from '../config';
 
 interface AdmissionFormBlankProps {
   onBack: () => void;
@@ -233,7 +234,7 @@ export default function AdmissionFormBlank({ onBack }: AdmissionFormBlankProps) 
               <header className="form-header">
                   <div className="logo-box"><span className="text-[10px] text-slate-400">لوگو</span></div>
                   <div className="institution-header">
-                      <h1>جامعہ عربیہ سراج العلوم</h1>
+                      <h1>{getMadrassaName()}</h1>
                       <p>مدینہ کالونی، چنار روڈ ٹھاکرہ مانسہرہ (KPK)</p>
                       <div className="form-title-badge">داخلہ فارم (Admission Form)</div>
                   </div>

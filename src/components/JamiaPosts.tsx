@@ -4,6 +4,7 @@ import {
   StickyNote, Calendar, Users, FileText, CheckCircle2,
   AlertTriangle, Share2, Layers, Image as ImageIcon, Upload, RefreshCw
 } from 'lucide-react';
+import { getMadrassaName } from '../config';
 
 interface JamiaPostsProps {
   onBack: () => void;
@@ -38,12 +39,12 @@ export default function JamiaPosts({ onBack }: JamiaPostsProps) {
   const [formContent, setFormContent] = useState('');
   const [formCategory, setFormCategory] = useState<'important' | 'holiday' | 'exam' | 'news' | 'general'>('important');
   const [formAudience, setFormAudience] = useState<'all' | 'students' | 'teachers' | 'staff'>('all');
-  const [formAuthor, setFormAuthor] = useState('ادارہ جامعہ عربیہ سراج العلوم');
+  const [formAuthor, setFormAuthor] = useState(() => `ادارہ ${getMadrassaName()}`);
   const [formDateHijri, setFormDateHijri] = useState('شوال المکرم ۱۴۴۷ھ');
 
   // Banner Generator States
   const [bannerMainTitle, setBannerMainTitle] = useState('سالانہ دستار بندی کانفرنس');
-  const [bannerSubtitle, setBannerSubtitle] = useState('جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ');
+  const [bannerSubtitle, setBannerSubtitle] = useState(() => getMadrassaName());
   const [bannerLogo, setBannerLogo] = useState<string | null>(null);
   const [bannerBodyPhoto, setBannerBodyPhoto] = useState<string | null>(null);
   const [bannerDateNumeric, setBannerDateNumeric] = useState('25');
@@ -143,7 +144,7 @@ export default function JamiaPosts({ onBack }: JamiaPostsProps) {
     setFormContent('');
     setFormCategory('important');
     setFormAudience('all');
-    setFormAuthor('ادارہ جامعہ عربیہ سراج العلوم');
+    setFormAuthor(`ادارہ ${getMadrassaName()}`);
     setFormDateHijri('شوال المکرم ۱۴۴۷ھ');
     setShowCreator(false);
   };
@@ -267,7 +268,7 @@ export default function JamiaPosts({ onBack }: JamiaPostsProps) {
           <div class="border-double">
             <div>
               <div class="header">
-                <h1>جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ</h1>
+                <h1>\${getMadrassaName()}</h1>
                 <h2>شعبہ اطلاعات، پبلیکیشنز اینڈ پبلک ریلیشنز</h2>
               </div>
               <div class="meta-info">
@@ -659,7 +660,7 @@ export default function JamiaPosts({ onBack }: JamiaPostsProps) {
                 setFormContent('');
                 setFormCategory('important');
                 setFormAudience('all');
-                setFormAuthor('ادارہ جامعہ عربیہ سراج العلوم');
+                setFormAuthor(`ادارہ ${getMadrassaName()}`);
                 setFormDateHijri('شوال المکرم ۱۴۴۷ھ');
                 setShowCreator(true);
               }}

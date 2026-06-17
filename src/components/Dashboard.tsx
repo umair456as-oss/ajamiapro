@@ -95,9 +95,12 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [allStudents, setAllStudents] = useState<any[]>([]);
   const [selectedPreviewStudent, setSelectedPreviewStudent] = useState<any | null>(null);
 
-  const [systemSettings, setSystemSettings] = useState({
-    jamiaName: 'جامعہ عربیہ سراج العلوم',
-    monogram: ''
+  const [systemSettings, setSystemSettings] = useState(() => {
+    const saved = localStorage.getItem('system_settings');
+    return saved ? JSON.parse(saved) : {
+      jamiaName: 'جامعہ عربیہ سراج العلوم',
+      monogram: ''
+    };
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -123,10 +126,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   // Permissions logic
   const [userRole, setUserRole] = useState(() => localStorage.getItem('currentUserRole') || 'Admin');
+  const [userStatus, setUserStatus] = useState(() => localStorage.getItem('userStatus') || 'accepted');
   
-  const ADMIN_EMAILS = ['abdulrehmanhabib.com@gmail.com', 'jamiaarabiasirajululoomjabori@gmail.com'];
-  const currentUserEmail = localStorage.getItem('currentUser');
-  const isAdmin = ADMIN_EMAILS.includes(currentUserEmail || '');
+  const ADMIN_EMAILS = ['abdulrehmanhabib.com@gmail.com'];
+  const currentUserEmail = localStorage.getItem('currentUser') || '';
+  const isAdmin = currentUserEmail.toLowerCase() === 'abdulrehmanhabib.com@gmail.com';
 
   const [permissions, setPermissions] = useState(() => {
     const saved = localStorage.getItem('role_permissions');
@@ -195,6 +199,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
           }
         }
       } catch (e) {}
+    }
+
+    if (userStatus === 'pending' && !isAdmin) {
+      const pendingAllowed = ['dashboard', 'all_students', 'results_grid', 'library', 'fatwa', 'posts'];
+      if (!pendingAllowed.includes(modId)) return false;
     }
 
     if (userRole === 'Admin') return true;
@@ -273,6 +282,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       if (saved) setSystemSettings(JSON.parse(saved));
       
       setUserRole(localStorage.getItem('currentUserRole') || 'Admin');
+      setUserStatus(localStorage.getItem('userStatus') || 'accepted');
       const savedPerms = localStorage.getItem('role_permissions');
       if (savedPerms) {
         try {
@@ -431,6 +441,67 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     return nameMatch || fatherNameMatch || regNoMatch || rollNoMatch || gradeMatch;
   });
 
+  const madrassaStatus = localStorage.getItem('madrassaStatus') || 'active';
+  const banReason = localStorage.getItem('madrassaRequirement') || localStorage.getItem('banReason') || 'آپ کا سافٹ ویئر لائسنس تعلیمی یا انتظامی امور کی ادائیگی یا بقایاجات کی وجہ سے عارضی طور پر بند کر دیا گیا ہے۔ برائے مہربانی کوائف کی تصدیق اور بقایاجات کی ادائیگی کے لیے مرکزی ایڈمن سے رابطہ کریں۔';
+  const isBanned = (userStatus === 'banned' || userStatus === 'suspended' || userStatus === 'rejected' || madrassaStatus === 'inactive' || localStorage.getItem('madrassaExpiryExpired') === 'true');
+
+  if (isBanned) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-urdu text-white text-right select-none" dir="rtl">
+        <div className="w-full max-w-xl bg-slate-900 border border-slate-800 rounded-[3rem] p-10 md:p-14 shadow-2xl relative overflow-hidden flex flex-col items-center">
+          {/* Accent light balls */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+          {/* Alert Icon */}
+          <div className="bg-red-500/10 border border-red-500/20 p-5 rounded-3xl text-red-500 mb-8 animate-pulse shadow-lg shadow-red-500/10">
+            <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-2xl md:text-3xl font-black text-white px-2 py-1 leading-tight text-center mb-4 font-urdu">
+             اکاؤنٹ معطل / منسوخ کر دیا گیا ہے!
+          </h1>
+          <p className="text-slate-400 text-xs text-center font-sans uppercase tracking-widest leading-none mb-6">Account Suspended & Blocked</p>
+          
+          <div className="w-full h-px bg-slate-800/80 my-2" />
+
+          {/* Madrassa Dynamic Requirement Message Box */}
+          <div className="w-full bg-slate-950/80 border border-slate-800/60 p-6 rounded-2xl mb-8 space-y-3 text-right">
+            <span className="text-xs font-bold text-red-400 block border-b border-slate-800/40 pb-2 font-urdu">نظام کی طرف سے متعلقہ تفصیلات و شرائط:</span>
+            <p className="text-sm md:text-md text-slate-300 leading-relaxed font-bold font-urdu">
+              {banReason}
+            </p>
+          </div>
+
+          {/* Support Actions */}
+          <div className="w-full flex flex-col gap-4">
+            <a 
+              href="https://wa.me/923435488319" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="bg-[#25D366] hover:bg-[#128C7E] border border-emerald-500/20 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/20 active:scale-95 transition-all text-center text-sm font-urdu"
+            >
+              <span>سپر ایڈمن سے رابطہ کریں (واٹس ایپ)</span>
+            </a>
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                onLogout();
+                navigate('/login');
+              }}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-2xl font-bold transition-all text-xs font-urdu"
+            >
+              لاگ آؤٹ اور بیک جائیں
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-row-reverse h-screen bg-[#F4F7F6] overflow-hidden print:block print:h-auto print:bg-transparent relative">
       {/* Sidebar Toggle Button */}
@@ -513,9 +584,9 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
           <Route path="/students" element={<StudentManagement onBack={() => navigate('/dashboard')} />} />
           <Route path="/all-students" element={<AllStudents onBack={() => navigate('/dashboard')} />} />
           <Route path="/document-capture" element={<StudentDocumentCapture onBack={() => navigate('/dashboard')} />} />
-          <Route path="/settings" element={<SettingsView onBack={() => navigate('/dashboard')} onSubViewChange={(view) => {
+          <Route path="/settings" element={isAdmin ? <SettingsView onBack={() => navigate('/dashboard')} onSubViewChange={(view) => {
             if (view === 'exam_management') navigate('/dashboard/exams');
-          }} />} />
+          }} /> : <Navigate to="/dashboard" replace />} />
           <Route path="/exams" element={<ExamManagement onBack={() => navigate('/dashboard')} />} />
           <Route path="/manual-attendance" element={<ManualAttendance onBack={() => navigate('/dashboard')} />} />
           <Route path="/attendance" element={<SecurityAttendance onBack={() => navigate('/dashboard')} />} />
@@ -655,6 +726,24 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
                   </div>
                 </div>
               </header>
+
+              {/* Pending View-only Banner */}
+              {userStatus === 'pending' && !isAdmin && (
+                <div className="bg-amber-500 text-white font-urdu font-bold px-8 py-4 flex items-center justify-between text-sm shadow-md" dir="rtl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">⚠️</span>
+                    <span>عارضی لاگ ان (صرف دیکھنے کی اجازت): آپ کا اکاؤنٹ ابھی ایڈمن کی منظوری کا منتظر ہے۔ آپ معلومات دیکھ سکتے ہیں، پر فارم تبدیل نہیں کر سکتے۔</span>
+                  </div>
+                  <a 
+                    href="https://wa.me/923435488319" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="bg-white text-amber-700 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-neutral-100 transition-all shadow-md font-urdu"
+                  >
+                    رابطہ ایڈمن
+                  </a>
+                </div>
+              )}
 
               {/* Sub Header / Tabs */}
               <div className="bg-white px-8 py-2 flex justify-end gap-10 border-b border-slate-100" dir="rtl">

@@ -19,7 +19,13 @@ export default function DailyAttendanceSheet({ onBack }: DailyAttendanceSheetPro
   const [staff, setStaff] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
   const [filteredBooks, setFilteredBooks] = useState<any[]>([]);
-  const [jamiaName, setJamiaName] = useState('جامعہ عربیہ سراج العلوم');
+  const [jamiaName, setJamiaName] = useState(() => {
+    try {
+      const saved = localStorage.getItem('system_settings');
+      if (saved) return JSON.parse(saved).jamiaName || 'جامعہ عربیہ سراج العلوم';
+    } catch (e) {}
+    return 'جامعہ عربیہ سراج العلوم';
+  });
 
   useEffect(() => {
     // Load classes

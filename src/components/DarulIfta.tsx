@@ -69,6 +69,10 @@ export default function DarulIfta({ onBack }: DarulIftaProps) {
   useEffect(() => {
     const savedSystem = JSON.parse(localStorage.getItem('system_settings') || '{}');
     setSystemSettings(savedSystem);
+    if (savedSystem.jamiaName) {
+      setFatwaData(prev => ({ ...prev, institutionName: `دارالافتاء: ${savedSystem.jamiaName}` }));
+      setExamData(prev => ({ ...prev, institutionName: savedSystem.jamiaName }));
+    }
   }, []);
 
   const handleAddQuestion = () => {

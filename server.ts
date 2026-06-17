@@ -187,7 +187,7 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     
     // Core default match from client logic (Super Admin)
-    if (email === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
+    if (email === 'abdulrehmanhabib.com@gmail.com' && (password === 'abdulrehmanadmin' || password === 'abdulrehmanhabib')) {
       return res.json({ success: true, user: { username: 'Admin', role: 'Admin', isSuperAdmin: true } });
     }
 
