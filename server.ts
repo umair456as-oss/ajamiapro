@@ -515,6 +515,19 @@ app.post('/api/save-fee', async (req, res) => {
   }
 });
 
+// 14. Trigger admission email alert
+app.post('/api/trigger-admission-email', async (req, res) => {
+  try {
+    const { admissionData } = req.body;
+    console.log('[NOTIFICATION] New admission request triggered by server action:', admissionData);
+    
+    // In a production app, use an email service SDK here (e.g., nodemailer with SMTP or SendGrid/Mailgun)
+    res.json({ success: true, message: 'Email notification triggered.' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 11. Download copy of DB file (raw database.sqlite/madrassa.db)
 app.get('/api/export-db', (req, res) => {
   res.download(DB_PATH, 'madrassa.db', (err) => {

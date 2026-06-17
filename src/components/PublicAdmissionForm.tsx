@@ -4,6 +4,8 @@ import {
   Trash2, Plus, AlertCircle, ArrowLeft, ArrowRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 const PublicAdmissionForm: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'guardians' | 'schools'>('basic');
@@ -91,9 +93,8 @@ const PublicAdmissionForm: React.FC = () => {
 
     // 2. Save Application
     const application = {
-      id: Date.now(),
       status: 'pending',
-      submittedAt: new Date().toLocaleString('en-GB'),
+      submittedAt: new Date().toISOString(),
       token,
       data: {
         basicInfo,
@@ -102,11 +103,22 @@ const PublicAdmissionForm: React.FC = () => {
       }
     };
 
-    const savedApps = localStorage.getItem('online_applications');
-    const apps = savedApps ? JSON.parse(savedApps) : [];
-    localStorage.setItem('online_applications', JSON.stringify([...apps, application]));
+    // Save to Firestore
+    addDoc(collection(db, "admissions"), application)
+      .then((docRef) => {
+        // Trigger email notification
+        fetch('/api/trigger-admission-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admissionData: application })
+        }).catch(err => console.error('Error triggering email:', err));
 
-    setSubmitted(true);
+        setSubmitted(true);
+      })
+      .catch((error) => {
+        console.error("Error adding admission: ", error);
+        alert('درخواست جمع کروانے میں غلطی ہوئی۔');
+      });
   };
 
   if (isValid === null) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-urdu">تصدیق ہو رہی ہے...</div>;

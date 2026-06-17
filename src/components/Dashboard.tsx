@@ -4,7 +4,7 @@ import {
   FileText, CreditCard, UserCog, Wallet, UserPlus, Bell, Camera, 
   Settings, LogOut, Search, Plus, Grid, MessageSquare, Book, 
   FileSearch, ClipboardList, PenTool, Phone, Library, Landmark,
-  StickyNote, Calculator, List, Globe, Trash2
+  StickyNote, Calculator, List, Globe, Trash2, X
 } from 'lucide-react';
 import { useNavigate, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import StudentManagement from './StudentManagement';
@@ -90,6 +90,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [activeModuleName, setActiveModuleName] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [selectedPreviewStudent, setSelectedPreviewStudent] = useState<any | null>(null);
+
   const [systemSettings, setSystemSettings] = useState({
     jamiaName: 'جامعہ عربیہ سراج العلوم',
     monogram: ''
@@ -98,6 +103,23 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [syncKey, setSyncKey] = useState(0); // Used to force refresh modules
+
+  // Load students for search
+  useEffect(() => {
+    const loadStudents = () => {
+      try {
+        const saved = localStorage.getItem('students');
+        if (saved) {
+          setAllStudents(JSON.parse(saved));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadStudents();
+    window.addEventListener('storage_updated', loadStudents);
+    return () => window.removeEventListener('storage_updated', loadStudents);
+  }, [syncKey]);
 
   // Permissions logic
   const [userRole, setUserRole] = useState(() => localStorage.getItem('currentUserRole') || 'Admin');
@@ -396,6 +418,19 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     { id: 'recycle_bin', path: '/dashboard/recycle-bin', icon: Trash2, title: 'ریسائیکل بن', color: 'bg-rose-500' },
   ].filter(card => hasPermission(card.id));
 
+  const matchedStudents = allStudents.filter(s => {
+    if (!globalSearchTerm) return false;
+    const term = globalSearchTerm.toLowerCase();
+    
+    const nameMatch = s.name?.toLowerCase().includes(term);
+    const fatherNameMatch = s.fatherName?.toLowerCase().includes(term);
+    const regNoMatch = s.regNo?.toLowerCase().includes(term) || s.id?.toString().includes(term);
+    const rollNoMatch = s.rollNo?.toLowerCase().includes(term);
+    const gradeMatch = s.grade?.toLowerCase().includes(term);
+    
+    return nameMatch || fatherNameMatch || regNoMatch || rollNoMatch || gradeMatch;
+  });
+
   return (
     <div className="flex flex-row-reverse h-screen bg-[#F4F7F6] overflow-hidden print:block print:h-auto print:bg-transparent relative">
       {/* Sidebar Toggle Button */}
@@ -521,7 +556,88 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
                     </button>
 
                     <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Bell className="w-5 h-5" /></button>
-                    <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Search className="w-5 h-5" /></button>
+                    
+                    {/* Global student search bar */}
+                    <div className="relative z-50 flex items-center" dir="rtl">
+                      <div className="flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white transition-all w-64 md:w-80">
+                        <Search className="w-4 h-4 text-slate-400 ml-2" />
+                        <input 
+                          type="text" 
+                          placeholder="طالب علم تلاش کریں (نام، رجسٹریشن، کلاس)..."
+                          value={globalSearchTerm}
+                          onChange={(e) => {
+                            setGlobalSearchTerm(e.target.value);
+                            setIsSearchFocused(true);
+                          }}
+                          onFocus={() => setIsSearchFocused(true)}
+                          className="bg-transparent text-xs outline-none text-slate-800 placeholder-slate-400 font-urdu w-full text-right"
+                        />
+                        {globalSearchTerm && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setGlobalSearchTerm('');
+                              setIsSearchFocused(false);
+                            }} 
+                            className="text-slate-400 hover:text-slate-600 mr-1 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Floating Results Panel */}
+                      {isSearchFocused && globalSearchTerm && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsSearchFocused(false)} />
+                           <div className="absolute top-12 left-0 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 max-h-96 overflow-y-auto z-50 p-2">
+                            <div className="px-3 py-2 text-[10px] font-bold text-slate-400 font-urdu text-right border-b border-slate-100">
+                              تلاش کے نتائج ({matchedStudents.length})
+                            </div>
+                            {matchedStudents.length === 0 ? (
+                              <div className="p-6 text-center text-xs text-slate-400 font-urdu">
+                                کوئی طالب علم نہیں ملا۔
+                              </div>
+                            ) : (
+                              <div className="divide-y divide-slate-100">
+                                {matchedStudents.slice(0, 8).map((student: any) => (
+                                  <div 
+                                    key={student.id} 
+                                    onClick={() => {
+                                      setSelectedPreviewStudent(student);
+                                      setIsSearchFocused(false);
+                                    }}
+                                    className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors flex items-center justify-between text-right"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold">
+                                        Reg: {student.regNo || student.id}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold font-urdu text-slate-800">{student.name}</span>
+                                      <span className="text-[10px] text-slate-400 font-urdu">کلاس: {student.grade || 'N/A'} | ولدیت: {student.fatherName || 'N/A'}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {matchedStudents.length > 8 && (
+                                  <div 
+                                    onClick={() => {
+                                      localStorage.setItem('pendingSearchTerm', globalSearchTerm);
+                                      navigate('/dashboard/all-students');
+                                      setIsSearchFocused(false);
+                                    }}
+                                    className="p-3 text-center text-[11px] font-bold text-blue-600 hover:bg-blue-50/50 rounded-xl font-urdu cursor-pointer transition-colors mt-1"
+                                  >
+                                    تمام {matchedStudents.length} نتائج دیکھنے کے لیے یہاں کلک کریں →
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -652,6 +768,103 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
         </Routes>
       </div>
       <VoiceAssistant />
+
+      {/* Student Details Preview Modal */}
+      {selectedPreviewStudent && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in duration-250">
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden flex flex-col animate-in scale-in duration-200" dir="rtl">
+            {/* Header */}
+            <div className="bg-gradient-to-l from-blue-600 to-indigo-600 text-white p-6 relative text-right">
+              <button 
+                onClick={() => setSelectedPreviewStudent(null)}
+                className="absolute top-4 left-4 bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-full transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-white text-2xl font-bold overflow-hidden border border-white/20">
+                  {selectedPreviewStudent.photo ? (
+                    <img src={selectedPreviewStudent.photo} alt="Student" className="w-full h-full object-cover" />
+                  ) : (
+                    <Users className="w-8 h-8" />
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold font-urdu">{selectedPreviewStudent.name}</h4>
+                  <p className="text-xs text-white/80 font-urdu mt-0.5">ولدیت: {selectedPreviewStudent.fatherName}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Profile Info Grid */}
+            <div className="p-6 space-y-4 text-sm text-slate-700 font-urdu max-h-[300px] overflow-y-auto text-right">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-bold">رجسٹریشن نمبر</span>
+                  <span className="text-xs font-bold text-slate-800 font-sans">{selectedPreviewStudent.regNo || selectedPreviewStudent.id}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-bold">کلاس (درجہ)</span>
+                  <span className="text-xs font-bold text-slate-800">{selectedPreviewStudent.grade || 'N/A'}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] text-slate-400 block font-bold">رول نمبر</span>
+                  <span className="text-xs font-bold text-slate-800 font-sans">{selectedPreviewStudent.rollNo || 'N/A'}</span>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-150">
+                  <span className="text-[10px] text-slate-400 block font-bold">رابطہ نمبر</span>
+                  <span className="text-xs font-bold text-slate-800 font-sans">{selectedPreviewStudent.phone || 'N/A'}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">شناختی کارڈ / ہدف نمبر</span>
+                  <span className="text-xs font-medium text-slate-700 font-sans">{selectedPreviewStudent.cnic || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">تاریخ پیدائش</span>
+                  <span className="text-xs font-medium text-slate-700 font-sans">{selectedPreviewStudent.dob || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">موجودہ پتہ</span>
+                  <span className="text-xs font-medium text-slate-700">{selectedPreviewStudent.currentAddress || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-100 flex gap-2">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('pendingEditStudentId', selectedPreviewStudent.id.toString());
+                  navigate('/dashboard/all-students');
+                  setSelectedPreviewStudent(null);
+                }}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-urdu font-bold py-2 px-4 rounded-xl text-center text-xs shadow-lg shadow-blue-600/10 transition-colors"
+              >
+                ترمیم کریں
+              </button>
+              <button 
+                onClick={() => {
+                  localStorage.setItem('pendingPrintStudentId', selectedPreviewStudent.id.toString());
+                  navigate('/dashboard/all-students');
+                  setSelectedPreviewStudent(null);
+                }}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-urdu font-bold py-2 px-4 rounded-xl text-center text-xs shadow-lg shadow-emerald-600/10 transition-colors"
+              >
+                داخلہ فارم پرنٹ کریں
+              </button>
+              <button 
+                onClick={() => setSelectedPreviewStudent(null)}
+                className="px-4 py-2 bg-slate-200 text-slate-700 font-urdu font-bold rounded-xl text-xs transition-colors hover:bg-slate-300"
+              >
+                بند کریں
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

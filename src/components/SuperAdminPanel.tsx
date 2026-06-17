@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, Key, Landmark, Layers, ToggleLeft, ToggleRight, Phone, Receipt, UserCog } from 'lucide-react';
 import { syncToServer } from '../syncService';
+import { collection, onSnapshot, query, where, updateDoc, doc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 // Predefined available modules in Digital Madrassa
 const ALL_MODULES = [
@@ -25,30 +27,19 @@ export default function SuperAdminPanel() {
     }
   });
 
-  const [users, setUsers] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem('users');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [users, setUsers] = useState<any[]>([]);
 
-  // Listen for sync/storage events
+  // Listen for pending requests from Firestore
   useEffect(() => {
-    const handleUpdate = () => {
-      console.log('Storage event received in SuperAdminPanel, checking users...');
-      try {
-        const savedMadrasas = localStorage.getItem('licensed_madrasas');
-        if (savedMadrasas) setMadrasas(JSON.parse(savedMadrasas));
-        
-        const savedUsers = localStorage.getItem('users');
-        console.log('Saved users from storage:', savedUsers);
-        if (savedUsers) setUsers(JSON.parse(savedUsers));
-      } catch (err) {}
-    };
-    window.addEventListener('storage_updated', handleUpdate);
-    return () => window.removeEventListener('storage_updated', handleUpdate);
+    const q = query(collection(db, "users"), where("status", "==", "pending"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const usersData: any[] = [];
+      snapshot.forEach((doc) => {
+        usersData.push({ id: doc.id, ...doc.data() });
+      });
+      setUsers(usersData);
+    });
+    return () => unsubscribe();
   }, []);
 
   const [form, setForm] = useState({
@@ -386,11 +377,9 @@ export default function SuperAdminPanel() {
                           {u.whatsapp && <p className="text-[10px] text-blue-600 font-sans">{u.whatsapp}</p>}
                         </div>
                         <button 
-                          onClick={() => {
-                            // Approve logic: update user, add to madrasas
-                            const updatedUsers = users.map(user => user.id === u.id ? {...user, status: 'accepted'} : user);
-                            setUsers(updatedUsers);
-                            localStorage.setItem('users', JSON.stringify(updatedUsers));
+                          onClick={async () => {
+                            // Approve logic: update user in Firestore
+                            await updateDoc(doc(db, "users", u.id), { status: 'accepted' });
                             
                             const newMadrassa = {                
                               id: 'madrassa-' + Date.now(),                
@@ -406,7 +395,6 @@ export default function SuperAdminPanel() {
                             setMadrasas(newList);
                             localStorage.setItem('licensed_madrasas', JSON.stringify(newList));
                             
-                            window.dispatchEvent(new Event('storage_updated'));
                             alert('درخواست قبول کر لی گئی');
                           }}
                           className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold"

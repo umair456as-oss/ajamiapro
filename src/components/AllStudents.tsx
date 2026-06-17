@@ -71,6 +71,31 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
     }
   }, []);
 
+  useEffect(() => {
+    const pendingEditId = localStorage.getItem('pendingEditStudentId');
+    const pendingPrintId = localStorage.getItem('pendingPrintStudentId');
+    const pendingSearchTerm = localStorage.getItem('pendingSearchTerm');
+    
+    if (pendingSearchTerm) {
+      setSearchTerm(pendingSearchTerm);
+      localStorage.removeItem('pendingSearchTerm');
+    }
+    
+    if (pendingEditId && students.length > 0) {
+      const found = students.find(s => s.id.toString() === pendingEditId);
+      if (found) {
+        setEditingStudent(found);
+        localStorage.removeItem('pendingEditStudentId');
+      }
+    } else if (pendingPrintId && students.length > 0) {
+      const found = students.find(s => s.id.toString() === pendingPrintId);
+      if (found) {
+        setPrintingStudent(found);
+        localStorage.removeItem('pendingPrintStudentId');
+      }
+    }
+  }, [students]);
+
   const filteredStudents = students.filter(s => {
     const matchesSearch = !searchTerm || 
       s.name.includes(searchTerm) || 

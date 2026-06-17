@@ -4,6 +4,8 @@ import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, customFetch } from '../config';
 import { googleSignIn } from '../lib/auth';
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 
 interface AuthProps {
@@ -36,23 +38,22 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     setIsLoading(true);
 
     if (!isLogin) {
-      // 1. Handle Account Request internally
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const newUser = {
-        id: Date.now(),
-        username: name,
-        email: email,
-        password: password,
-        madrassaName: madrassaName,
-        whatsapp: whatsapp,
-        status: 'pending',
-        role: 'Admin'
-      };
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      console.log('New account request saved:', newUser);
-      window.dispatchEvent(new Event('storage_updated'));
-      alert('آپ کی درخواست ایڈمن کو بھیج دی گئی ہے۔ منظوری کے بعد ہی آپ لاگ ان کر سکیں گے۔');
+      try {
+        await addDoc(collection(db, "users"), {
+          username: name,
+          email: email,
+          password: password,
+          madrassaName: madrassaName,
+          whatsapp: whatsapp,
+          status: 'pending',
+          role: 'Admin',
+          createdAt: new Date().toISOString()
+        });
+        alert('آپ کی درخواست ایڈمن کو بھیج دی گئی ہے۔ منظوری کے بعد ہی آپ لاگ ان کر سکیں گے۔');
+      } catch (e) {
+        console.error("Error adding document: ", e);
+        alert('درخواست بھیجنے میں غلطی ہوئی، دوبارہ کوشش کریں۔');
+      }
       setIsLoading(false);
       setIsLogin(true);
       return;
