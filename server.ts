@@ -361,21 +361,30 @@ app.post('/api/upload-excel', async (req, res) => {
       const existing = data[studentsKey] || [];
       const updated = [...existing];
       
-      parsedRows.forEach((row: any) => {
+      parsedRows.forEach((row: any, index: number) => {
+        const randomSalt = Math.floor(Math.random() * 1000000);
+        const stId = row.id || `${Date.now()}-${index}-${randomSalt}`;
+        
+        let fileRegNo = row.regNo || row['رجسٹریشن نمبر'] || row['رجسٹریشن'] || row.id || '';
+        const isGenerated = !fileRegNo;
+        if (!fileRegNo) {
+          fileRegNo = `REG-${stId}`;
+        }
+
         const student = {
-          id: row.id || Date.now() + Math.floor(Math.random() * 10000),
+          id: stId,
           name: row.name || row['نام'] || '',
           fatherName: row.fatherName || row['ولدیت'] || '',
-          regNo: String(row.regNo || row['رجسٹریشن نمبر'] || row.id || ''),
+          regNo: String(fileRegNo),
           rollNo: String(row.rollNo || row['رول نمبر'] || ''),
           class: row.class || row['درجہ'] || row['کلاس'] || '',
-          fatherPhone: row.fatherPhone || row['رابطہ نمبر'] || '',
+          fatherPhone: row.fatherPhone || row['رابطہ نمبر'] || row.phone || row['فون'] || '',
           dob: row.dob || '',
-          address: row.address || row['پتہ'] || '',
+          address: row.address || row['پتہ'] || row.district || row['ضلع'] || '',
           admissionDate: row.admissionDate || new Date().toLocaleDateString()
         };
         
-        const idx = updated.findIndex(s => s.regNo === student.regNo);
+        const idx = !isGenerated ? updated.findIndex(s => String(s.regNo) === String(student.regNo)) : -1;
         if (idx >= 0) {
           updated[idx] = { ...updated[idx], ...student };
         } else {
@@ -389,13 +398,15 @@ app.post('/api/upload-excel', async (req, res) => {
       const existing = data[staffKey] || [];
       const updated = [...existing];
 
-      parsedRows.forEach((row: any) => {
+      parsedRows.forEach((row: any, index: number) => {
+        const randomSalt = Math.floor(Math.random() * 1000000);
+        const staffId = row.id || `${Date.now()}-${index}-${randomSalt}`;
         const staffMember = {
-          id: row.id || Date.now() + Math.floor(Math.random() * 10000),
+          id: staffId,
           name: row.name || row['نام'] || '',
           fatherName: row.fatherName || row['ولدیت'] || '',
           designation: row.designation || row['عہدہ'] || '',
-          phone: row.phone || row['رابطہ نمبر'] || '',
+          phone: row.phone || row['رابطہ نمبر'] || row.phone || row['فون'] || '',
           basicSalary: Number(row.basicSalary || row['بنیادی تنخواہ'] || 0),
           joiningDate: row.joiningDate || new Date().toLocaleDateString()
         };

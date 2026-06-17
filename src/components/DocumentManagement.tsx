@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import DailyAttendanceSheet from './DailyAttendanceSheet';
 import StudentDocumentCapture from './StudentDocumentCapture';
+import { DrivePicker } from './DrivePicker';
 
 interface DocumentManagementProps {
   onBack: () => void;

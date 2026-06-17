@@ -124,17 +124,20 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
     const matchesYear = !selectedYear || studentYear === selectedYear;
     
     return matchesSearch && matchesDarja && matchesYear;
-  });
+  }).sort((a, b) => (a.grade || '').localeCompare(b.grade || ''));
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
   const paginatedStudents = filteredStudents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const handleDelete = async (id: number) => {
-    const studentToDelete = students.find(s => s.id === id);
+  const handleDelete = async (id: any) => {
+    if (!window.confirm('کیا آپ واقعی اس طالب علم کا ریکارڈ حذف کرنا چاہتے ہیں؟')) {
+      return;
+    }
+    const studentToDelete = students.find(s => String(s.id) === String(id));
     if (studentToDelete) {
       addToRecycleBin('students', studentToDelete, 'name');
     }
-    const updated = students.filter(s => s.id !== id);
+    const updated = students.filter(s => String(s.id) !== String(id));
     setStudents(updated);
     localStorage.setItem('students', JSON.stringify(updated));
     await syncToServer();
@@ -374,6 +377,7 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
           <table className="w-full text-right" dir="rtl">
             <thead className="bg-[#800000] text-white">
               <tr>
+                <th className="px-2 py-3 text-xs font-urdu border-l border-white/10 print:border-black print:text-black print:bg-slate-100">شمار</th>
                 <th className="px-4 py-3 text-xs font-urdu border-l border-white/10 print:border-black print:text-black print:bg-slate-100">تصویر</th>
                 <th className="px-4 py-3 text-xs font-urdu border-l border-white/10 print:border-black print:text-black print:bg-slate-100">کلاس</th>
                 <th className="px-4 py-3 text-xs font-urdu border-l border-white/10 print:border-black print:text-black print:bg-slate-100">نام</th>
@@ -388,11 +392,12 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
             <tbody className="text-xs">
               {paginatedStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-20 text-center text-slate-400 font-urdu print:border-black print:text-black">کوئی ریکارڈ موجود نہیں ہے۔</td>
+                  <td colSpan={10} className="p-20 text-center text-slate-400 font-urdu print:border-black print:text-black">کوئی ریکارڈ موجود نہیں ہے۔</td>
                 </tr>
               ) : (
                 paginatedStudents.map((student, index) => (
                   <tr key={student.id || index} className="border-b border-slate-100 hover:bg-slate-50 transition-colors print:border-b-black">
+                    <td className="px-2 py-2 text-center text-slate-500 font-sans print:border-black print:text-black">{(currentPage - 1) * pageSize + index + 1}</td>
                     <td className="px-4 py-2 text-center print:border-black">
                       {student.photo ? (
                         <img src={student.photo} alt={student.name} className="w-10 h-10 rounded-full object-cover border border-slate-200 mx-auto print:rounded-none print:w-12 print:h-12" />
@@ -400,7 +405,7 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 mx-auto print:rounded-none print:w-12 print:h-12 print:border print:border-black">No Pic</div>
                       )}
                     </td>
-                    <td className="px-4 py-2 font-urdu text-slate-600 print:border-black print:text-black">{(currentPage - 1) * pageSize + index + 1}- {student.grade}</td>
+                    <td className="px-4 py-2 font-urdu text-slate-600 print:border-black print:text-black">{student.grade}</td>
                     <td className="px-4 py-2 font-urdu font-bold text-slate-900 print:border-black print:text-black">{student.name}</td>
                     <td className="px-4 py-2 font-urdu text-slate-700 print:border-black print:text-black">{student.fatherName}</td>
                     <td className="px-4 py-2 text-slate-600 font-mono tracking-tighter print:border-black print:text-black">{student.cnic}</td>

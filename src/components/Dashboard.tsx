@@ -354,6 +354,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
               'website_fatawa',
               'website_gallery',
               'website_gallery_categories',
+              'website_home_sections',
               'books',
               'grades',
               'results',
@@ -376,7 +377,19 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
               'positions',
               'online_links',
               'online_applications',
-              'licensed_madrasas'
+              'licensed_madrasas',
+              'examRecords',
+              'all_exam_results',
+              'jamia_papers',
+              'jamia_posts',
+              'fin_transactions',
+              'fin_heads',
+              'fin_accounts',
+              'library_books',
+              'studentList',
+              'teacherAttendance',
+              'attendanceRecords',
+              'zk_attendance_data'
             ];
 
             // Update local storage keys if they differ
