@@ -279,7 +279,6 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
 
     // 2. Listen for background updates to trigger module refreshes
     const handleStorageUpdate = () => {
-      setSyncKey(prev => prev + 1);
       const saved = localStorage.getItem('system_settings');
       if (saved) setSystemSettings(JSON.parse(saved));
       
@@ -639,7 +638,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible print:h-auto" key={syncKey}>
+      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible print:h-auto">
 
         <Routes>
           <Route path="/students" element={<StudentManagement onBack={() => navigate('/dashboard')} />} />
