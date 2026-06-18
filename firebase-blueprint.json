@@ -17,12 +17,62 @@
         "allowedModules": { "type": "array", "description": "List of permitted features/modules" }
       },
       "required": ["id", "madrassaName", "email", "password", "expiryDate", "status"]
+    },
+    "madrassa_sync_data": {
+      "title": "Madrassa Central Synced Data",
+      "description": "JSON serialized key-value store of madrassas state",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object", "description": "Payload containing all synced keys (students, staff, finance, etc.)" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp when central data was updated" }
+      },
+      "required": ["data", "updatedAt"]
+    },
+    "user_entity": {
+      "title": "User Account Registration",
+      "description": "Madrassa login/role account credentials and authorization data",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "madrassaName": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["username", "email", "password", "madrassaName", "status", "role"]
+    },
+    "admission_entity": {
+      "title": "Public Admission Application",
+      "description": "Form fields for student applications",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "submittedAt": { "type": "string" },
+        "token": { "type": "string" },
+        "data": { "type": "object" }
+      },
+      "required": ["status", "submittedAt", "token", "data"]
     }
   },
   "firestore": {
     "/licensed_madrasas/{madrassaId}": {
       "schema": "madrassa_tenant",
       "description": "Collection storing billing accounts and credentials of all paying client madrasas"
+    },
+    "/madrassas/{madrassaId}": {
+      "schema": "madrassa_sync_data",
+      "description": "Collection storing full persistent centralized offline datasets for each tenant madrassa"
+    },
+    "/users/{userId}": {
+      "schema": "user_entity",
+      "description": "Authorized accounts registration and permission system"
+    },
+    "/admissions/{admissionId}": {
+      "schema": "admission_entity",
+      "description": "Public admissions incoming registration forms"
     }
   }
 }

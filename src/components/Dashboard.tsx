@@ -100,7 +100,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [systemSettings, setSystemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
     return saved ? JSON.parse(saved) : {
-      jamiaName: 'جامعہ عربیہ سراج العلوم',
+      jamiaName: 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ',
       monogram: ''
     };
   });
@@ -130,9 +130,9 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [userRole, setUserRole] = useState(() => localStorage.getItem('currentUserRole') || 'Admin');
   const [userStatus, setUserStatus] = useState(() => localStorage.getItem('userStatus') || 'accepted');
   
-  const ADMIN_EMAILS = ['abdulrehmanhabib.com@gmail.com'];
+  const ADMIN_EMAILS = ['abdulrehmanhabib.com@gmail.com', 'jamiaarabiasirajululoomjabori@gmail.com'];
   const currentUserEmail = localStorage.getItem('currentUser') || '';
-  const isAdmin = currentUserEmail.toLowerCase() === 'abdulrehmanhabib.com@gmail.com';
+  const isAdmin = ADMIN_EMAILS.includes(currentUserEmail.toLowerCase()) || userRole === 'Admin';
 
   const [permissions, setPermissions] = useState(() => {
     const saved = localStorage.getItem('role_permissions');
@@ -480,7 +480,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     { id: 'reports', path: '/dashboard/reports', icon: ClipboardList, urdu: 'رپورٹس', english: 'Reports Center' },
     { id: 'recycle_bin', path: '/dashboard/recycle-bin', icon: Trash2, urdu: 'ریسائیکل بن', english: 'Recycle Bin' },
   ].filter(item => {
-    if (item.id === 'settings') return hasPermission(item.id) && isAdmin;
+    if (item.id === 'settings') return hasPermission(item.id) && (isAdmin || userStatus === 'accepted');
     return hasPermission(item.id);
   });
 
@@ -672,7 +672,7 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
           <Route path="/students" element={<StudentManagement onBack={() => navigate('/dashboard')} />} />
           <Route path="/all-students" element={<AllStudents onBack={() => navigate('/dashboard')} />} />
           <Route path="/document-capture" element={<StudentDocumentCapture onBack={() => navigate('/dashboard')} />} />
-          <Route path="/settings" element={isAdmin ? <SettingsView onBack={() => navigate('/dashboard')} onSubViewChange={(view) => {
+          <Route path="/settings" element={(isAdmin || userStatus === 'accepted') ? <SettingsView onBack={() => navigate('/dashboard')} onSubViewChange={(view) => {
             if (view === 'exam_management') navigate('/dashboard/exams');
           }} /> : <Navigate to="/dashboard" replace />} />
           <Route path="/exams" element={<ExamManagement onBack={() => navigate('/dashboard')} />} />

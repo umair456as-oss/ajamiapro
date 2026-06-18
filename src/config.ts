@@ -39,7 +39,7 @@ export const customFetch = async (input: RequestInfo | URL, init?: RequestInit):
 };
 
 export const getMadrassaName = (): string => {
-  if (typeof window === 'undefined') return 'جامعہ عربیہ سراج العلوم';
+  if (typeof window === 'undefined') return 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ';
   try {
     const saved = localStorage.getItem('system_settings');
     if (saved) {
@@ -53,7 +53,7 @@ export const getMadrassaName = (): string => {
   } catch (e) {
     console.warn('Error reading madrassa name:', e);
   }
-  return 'جامعہ عربیہ سراج العلوم';
+  return 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ';
 };
 
 

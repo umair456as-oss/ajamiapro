@@ -49,7 +49,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     try {
       const saved = localStorage.getItem('system_settings');
       return saved ? JSON.parse(saved) : {
-        jamiaName: 'جامعہ عربیہ سراج ا',
+        jamiaName: 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ',
         registrationPrefix: 'JASM-',
         contactNumber: '0300-1234567',
         academicYear: '1442',
@@ -58,7 +58,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
         monogram: ''
       };
     } catch (e) {
-      return { jamiaName: 'جامعہ عربیہ سراج ا', registrationPrefix: 'JASM-', contactNumber: '0300-1234567', academicYear: '1442', passingMarks: 40, minAttendance: 75, monogram: '' };
+      return { jamiaName: 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ', registrationPrefix: 'JASM-', contactNumber: '0300-1234567', academicYear: '1442', passingMarks: 40, minAttendance: 75, monogram: '' };
     }
   });
 
@@ -290,7 +290,9 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     }
   };
 
-  const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true' || localStorage.getItem('currentUser') === 'jamiaarabiasirajululoomjabori@gmail.com';
+  const isSuperAdmin = localStorage.getItem('isSuperAdmin') === 'true' || 
+                       localStorage.getItem('currentUser') === 'jamiaarabiasirajululoomjabori@gmail.com' ||
+                       localStorage.getItem('currentUser') === 'abdulrehmanhabib.com@gmail.com';
   const currentUserRole = localStorage.getItem('currentUserRole') || 'Admin';
   const isAccountManagerAdmin = currentUserRole === 'Admin' || isSuperAdmin;
 
@@ -301,7 +303,6 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     ...(isAccountManagerAdmin ? [{ id: 'account', label: 'اکاؤنٹ مینجمنٹ' }] : []),
     { id: 'online', label: 'آن لائن داخلہ فارم' },
     { id: 'system', label: 'نظام کی ترتیبات' },
-    ...(isSuperAdmin ? [{ id: 'superadmin', label: 'سپر ایڈمن کنٹرول (مدارس مینیجر)' }] : []),
   ];
 
   const renderSubView = () => {
@@ -934,14 +935,6 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
     }
   };
 
-  if (activeTab === 'superadmin' && isSuperAdmin) {
-    return (
-      <div className="fixed inset-0 bg-slate-50 z-[9999] overflow-hidden flex flex-col">
-        <SuperAdminPanel onClose={() => setActiveTab('basic')} />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-hidden relative">
       {/* Header */}
@@ -1383,37 +1376,48 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                   </div>
                                 )}
                              </div>
-                             <button 
-                                onClick={() => {
-                                  const input = document.createElement('input');
-                                  input.type = 'file';
-                                  input.accept = 'image/*';
-                                  input.onchange = (e: any) => {
-                                    const file = e.target.files[0];
-                                    const reader = new FileReader();
-                                    reader.onload = (re) => {
-                                      setSystemSettings({ ...systemSettings, monogram: re.target?.result as string });
+                             {isSuperAdmin ? (
+                               <button 
+                                  onClick={() => {
+                                    const input = document.createElement('input');
+                                    input.type = 'file';
+                                    input.accept = 'image/*';
+                                    input.onchange = (e: any) => {
+                                      const file = e.target.files[0];
+                                      const reader = new FileReader();
+                                      reader.onload = (re) => {
+                                        setSystemSettings({ ...systemSettings, monogram: re.target?.result as string });
+                                      };
+                                      reader.readAsDataURL(file);
                                     };
-                                    reader.readAsDataURL(file);
-                                  };
-                                  input.click();
-                                }}
-                                className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-2xl font-urdu font-bold text-xs hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
-                             >
-                                <Plus className="w-4 h-4" />
-                                <span>مونوگرام اپلوڈ کریں</span>
-                             </button>
+                                    input.click();
+                                  }}
+                                  className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-2xl font-urdu font-bold text-xs hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
+                               >
+                                  <Plus className="w-4 h-4" />
+                                  <span>مونوگرام اپلوڈ کریں</span>
+                               </button>
+                             ) : (
+                               <div className="mt-6 text-xs font-urdu text-amber-600 bg-amber-50 border border-amber-100 p-3 rounded-xl text-center">
+                                 ⚠️ مونوگرام صرف سپر ایڈمن ہی تبدیل کر سکتا ہے۔
+                               </div>
+                             )}
                           </div>
 
                           {/* Info Section */}
                           <div className="space-y-6">
+                            {!isSuperAdmin && (
+                              <div className="p-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-urdu text-center">
+                                 بنیادی معلومات، رجسٹریشن نمبر اور مونوگرام صرف سپر ایڈمن (مدارس مینیجر) ہی تبدیل کر سکتا ہے۔
+                              </div>
+                            )}
                             <div className="space-y-2">
                               <label className="text-[10px] text-slate-400 font-urdu block pr-2">جامعہ کا نام (اردو)</label>
                               <input 
                                 type="text" 
                                 value={systemSettings.jamiaName}
                                 onChange={(e) => setSystemSettings({...systemSettings, jamiaName: e.target.value})}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold font-urdu text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-urdu outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1422,7 +1426,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 type="text" 
                                 value={systemSettings.registrationPrefix}
                                 onChange={(e) => setSystemSettings({...systemSettings, registrationPrefix: e.target.value})}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold font-mono text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1431,7 +1435,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 type="text" 
                                 value={systemSettings.contactNumber}
                                 onChange={(e) => setSystemSettings({...systemSettings, contactNumber: e.target.value})}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold font-mono text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center"
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-slate-700"
                               />
                             </div>
                           </div>
@@ -1449,18 +1453,32 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                         <div className="space-y-6 pt-4">
                           <div className="space-y-2">
                               <label className="text-[10px] text-slate-400 font-urdu block pr-2">موجودہ پاسورڈ</label>
-                              <input type="password" placeholder="••••••••" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                              <input 
+                                type="password" 
+                                placeholder="••••••••" 
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800" 
+                              />
                           </div>
                           <div className="space-y-2">
                               <label className="text-[10px] text-slate-400 font-urdu block pr-2">نیا پاسورڈ</label>
-                              <input type="password" placeholder="••••••••" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                              <input 
+                                type="password" 
+                                placeholder="••••••••" 
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800" 
+                              />
                           </div>
                           <div className="space-y-2">
                               <label className="text-[10px] text-slate-400 font-urdu block pr-2">پاسورڈ کی تصدیق</label>
-                              <input type="password" placeholder="••••••••" className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" />
+                              <input 
+                                type="password" 
+                                placeholder="••••••••" 
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800" 
+                              />
                           </div>
                           
-                          <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-urdu font-bold shadow-xl shadow-slate-900/20 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3">
+                          <button 
+                            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-urdu font-bold shadow-xl shadow-slate-900/20 hover:bg-black transition-all active:scale-95 flex items-center justify-center gap-3"
+                          >
                              <ShieldCheck className="w-5 h-5" />
                              <span>پاسورڈ اپڈیٹ کریں</span>
                           </button>
@@ -1702,10 +1720,6 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === 'superadmin' && isSuperAdmin && (
-            <SuperAdminPanel />
           )}
         </div>
       </div>

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark } from 'lucide-react';
+import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, customFetch } from '../config';
 import { googleSignIn } from '../lib/auth';
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import PublicResultPortal from './PublicResultPortal';
 
 
 interface AuthProps {
@@ -24,49 +25,31 @@ export default function AuthSystem({ onLogin }: AuthProps) {
   const [systemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
     return saved ? JSON.parse(saved) : {
-      jamiaName: 'جامعہ عربیہ سراج العلوم',
+      jamiaName: 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ',
       monogram: ''
     };
   });
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showResultPortal, setShowResultPortal] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!isLogin) {
-      try {
-        await addDoc(collection(db, "users"), {
-          username: name,
-          email: email,
-          password: password,
-          madrassaName: madrassaName,
-          whatsapp: whatsapp,
-          status: 'pending',
-          role: 'Admin',
-          createdAt: new Date().toISOString()
-        });
-        alert('آپ کی درخواست ایڈمن کو بھیج دی گئی ہے۔ منظوری کے بعد ہی آپ لاگ ان کر سکیں گے۔');
-      } catch (e) {
-        console.error("Error adding document: ", e);
-        alert('درخواست بھیجنے میں غلطی ہوئی، دوبارہ کوشش کریں۔');
-      }
-      setIsLoading(false);
-      setIsLogin(true);
-      return;
-    }
-
     try {
-      // 1. First check against the requested Main Admin (Local Check for immediate access)
-      if (email === 'abdulrehmanhabib.com@gmail.com' && (password === 'abdulrehmanadmin' || password === 'abdulrehmanhabib')) {
-        localStorage.setItem('currentUser', email);
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Check master email 1 (Jamia Administrator)
+      if (normalizedEmail === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
+        localStorage.setItem('currentUser', normalizedEmail);
         localStorage.setItem('currentUserRole', 'Admin');
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('isSuperAdmin', 'true');
         localStorage.setItem('userStatus', 'accepted');
+        localStorage.setItem('paymentStatus', 'paid');
         localStorage.removeItem('madrassaId');
         localStorage.removeItem('madrassaJamiaName');
         localStorage.removeItem('madrassaModules');
@@ -75,19 +58,42 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         return;
       }
 
-      // 1.5 Check local users dataset for instant offline-friendly matched accounts
+      // Check master email 2 (Developer / Primary Admin)
+      if (normalizedEmail === 'abdulrehmanhabib.com@gmail.com' && (password === 'abdulrehmanadmin' || password === 'abdulrehmanhabib' || password === 'jamiaarabiasirajululoomjabori')) {
+        localStorage.setItem('currentUser', normalizedEmail);
+        localStorage.setItem('currentUserRole', 'Admin');
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('isSuperAdmin', 'true');
+        localStorage.setItem('userStatus', 'accepted');
+        localStorage.setItem('paymentStatus', 'paid');
+        localStorage.removeItem('madrassaId');
+        localStorage.removeItem('madrassaJamiaName');
+        localStorage.removeItem('madrassaModules');
+        onLogin();
+        navigate('/dashboard');
+        return;
+      }
+
+      // Check locally added staff/teachers created inside "Account Management"
       const localUsersStr = localStorage.getItem('users');
       if (localUsersStr) {
         try {
           const localUsers = JSON.parse(localUsersStr);
           const foundLocal = localUsers.find((u: any) => 
-            (u.username === email || u.username?.toLowerCase() === email?.toLowerCase() || u.email === email) && 
+            (u.username?.toLowerCase() === normalizedEmail || u.email?.toLowerCase() === normalizedEmail) && 
             u.password === password
           );
           if (foundLocal) {
-            localStorage.setItem('currentUser', foundLocal.username);
+            localStorage.setItem('currentUser', foundLocal.email || foundLocal.username);
             localStorage.setItem('currentUserRole', foundLocal.role || 'Teacher');
             localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('paymentStatus', 'paid');
+            // If they are Admin from Account Management, let them access
+            if (foundLocal.role === 'Admin') {
+              localStorage.setItem('userStatus', 'accepted');
+            } else {
+              localStorage.setItem('userStatus', 'accepted'); // default to allowed inside sub views
+            }
             onLogin();
             navigate('/dashboard');
             return;
@@ -97,67 +103,21 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         }
       }
 
-      // 2. Check against Server API for central and multi-tenant authentication
-      const response = await customFetch(`${API_BASE_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        localStorage.setItem('currentUser', result.user.username);
-        localStorage.setItem('currentUserRole', result.user.role || 'Admin');
-        localStorage.setItem('userStatus', result.user.status || 'pending');
-        localStorage.setItem('paymentStatus', result.user.paymentStatus || 'unpaid');
-        localStorage.setItem('isLoggedIn', 'true');
-        
-        if (result.user.isSuperAdmin) {
-          localStorage.setItem('isSuperAdmin', 'true');
-          localStorage.removeItem('madrassaId');
-          localStorage.removeItem('madrassaJamiaName');
-          localStorage.removeItem('madrassaModules');
-        } else if (result.user.madrassaId) {
-          localStorage.setItem('madrassaId', result.user.madrassaId);
-          localStorage.setItem('madrassaJamiaName', result.user.jamiaName);
-          localStorage.setItem('madrassaExpiry', result.user.expiryDate);
-          localStorage.setItem('madrassaModules', JSON.stringify(result.user.allowedModules || []));
-          localStorage.removeItem('isSuperAdmin');
-          
-          // Re-write system settings jamiaName locally so current views display it
-          try {
-            const savedSettings = localStorage.getItem('system_settings');
-            const parsed = savedSettings ? JSON.parse(savedSettings) : {};
-            parsed.jamiaName = result.user.jamiaName;
-            localStorage.setItem('system_settings', JSON.stringify(parsed));
-          } catch(e) {}
-        } else {
-          localStorage.removeItem('madrassaId');
-          localStorage.removeItem('isSuperAdmin');
-          localStorage.removeItem('madrassaJamiaName');
-          localStorage.removeItem('madrassaModules');
-        }
-
-        onLogin();
-        navigate('/dashboard');
-      } else {
-        setError(result.error || 'یوزر نیم یا پاسورڈ غلط ہے۔');
-      }
+      setError('یوزر کوڈ یا پاس ورڈ درست نہیں ہے۔ براہ کرم صحیح معلومات درج کریں۔');
     } catch (err) {
-      setError('سرور سے رابطہ کرنے میں خرابی۔ براہ کرم دوبارہ کوشش کریں۔');
+      setError('لاگ ان میں فنی خرابی پیش آگئی ہے۔ دوبارہ کوشش کریں۔');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[#F4F7F6]">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 md:p-8 bg-[#F4F7F6] overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-[1000px] h-auto md:h-[650px] bg-white rounded-[2rem] overflow-hidden shadow-2xl border border-white flex flex-col md:flex-row relative z-10"
+        className="w-full max-w-[1000px] min-h-auto md:min-h-[650px] my-auto bg-white rounded-[2rem] overflow-hidden shadow-2xl border border-white flex flex-col md:flex-row relative z-10 shadow-slate-200/50"
       >
         {/* Branding Side (Left) */}
         <div className="md:flex-1 sidebar-gradient p-12 flex flex-col justify-between text-white relative overflow-hidden">
@@ -205,67 +165,16 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
         {/* Form Side (Right) */}
         <div className="md:flex-[1.2] p-8 md:p-16 flex flex-col justify-center bg-white">
-          <div className="mb-10">
-            <h2 className="text-2xl font-bold text-[#0F172A] mb-2">
-              {isLogin ? 'Welcome back' : 'Create an account'}
+          <div className="mb-10 text-right" dir="rtl">
+            <h2 className="text-3xl font-bold text-[#0F172A] mb-2 font-urdu">
+              سائن ان کریں
             </h2>
-            <p className="text-[#64748B] text-sm font-urdu" dir="rtl">
-              {isLogin ? 'لاگ ان ہو کر نظام کی مکمل سہولیات تک رسائی حاصل کریں' : 'نئے اکاؤنٹ کے لیے اپنی تفصیلات درج کریں'}
+            <p className="text-[#64748B] text-sm font-urdu leading-relaxed">
+              تعلیمی نظام کے انتظام کے لیے اپنے لاگ ان کوڈ یا ای میل اور پاس ورڈ کا استعمال کریں۔
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <AnimatePresence mode="wait">
-              {!isLogin && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-2"
-                >
-                  <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu" dir="rtl">نام</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="input-field text-right"
-                      placeholder="اپنا نام درج کریں"
-                      dir="rtl"
-                    />
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
-                  </div>
-                  <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu mt-4" dir="rtl">مدرسہ کا نام</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={madrassaName}
-                      onChange={(e) => setMadrassaName(e.target.value)}
-                      className="input-field text-right"
-                      placeholder="مدرسہ/جامعہ کا نام"
-                      dir="rtl"
-                    />
-                    <Landmark className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
-                  </div>
-                  <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu mt-4" dir="rtl">واٹس ایپ نمبر</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={whatsapp}
-                      onChange={(e) => setWhatsapp(e.target.value)}
-                      className="input-field text-right"
-                      placeholder="واٹس ایپ نمبر"
-                      dir="rtl"
-                    />
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-4 h-4" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
             <div className="space-y-2">
               <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu" dir="rtl">یوزرنیم یا ای میل</label>
               <div className="relative">
@@ -284,7 +193,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <a href="#" className="text-xs font-semibold text-[#2563EB] hover:underline">Forgot password?</a>
+                <span className="text-xs text-slate-300">Protected Portal</span>
                 <label className="block text-sm font-medium text-[#0F172A] text-right font-urdu" dir="rtl">پاس ورڈ</label>
               </div>
               <div className="relative">
@@ -301,12 +210,10 @@ export default function AuthSystem({ onLogin }: AuthProps) {
               </div>
             </div>
 
-            {isLogin && (
-              <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                <input type="checkbox" className="rounded border-[#E2E8F0] text-[#2563EB] focus:ring-[#2563EB]" />
-                <span>Remember me</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-xs text-[#64748B] justify-end">
+              <span>مجھے یاد رکھیں</span>
+              <input type="checkbox" defaultChecked className="rounded border-[#E2E8F0] text-[#2563EB] focus:ring-[#2563EB]" />
+            </div>
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-xs font-urdu text-right space-y-2" dir="rtl">
@@ -334,93 +241,115 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                   <span>برائے مہربانی انتظار کریں...</span>
                 </>
               ) : (
-                isLogin ? 'Sign In' : 'Request Account'
+                'لاگ ان کریں'
               )}
             </button>
 
-            {/* Removed Admin Login Button as requested */}
-          </form>
+            <button 
+              type="button" 
+              onClick={() => setShowResultPortal(true)}
+              className="w-full mt-3 bg-[#800000] hover:bg-[#600000] text-white py-3 px-4 rounded-xl font-bold font-urdu text-center transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-100"
+            >
+              <Award className="w-4 h-4 text-white" />
+              <span>امتحانی نتیجہ اور کشف الدرجات (بغیر لاگ ان)</span>
+            </button>
 
-          <div className="mt-8">
-            <div className="relative flex items-center justify-center mb-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#E2E8F0]"></div>
-              </div>
-              <span className="relative px-4 bg-white text-[10px] font-bold text-[#64748B] tracking-widest uppercase">
-                Or continue with
-              </span>
-            </div>
-
-            <div className="flex gap-3">
-              <button 
-                type="button"
-                onClick={async () => {
-                   setIsLoading(true);
-                   try {
-                     const result = await googleSignIn();
-                     if (result) {
-                        const emailToCheck = (result.user.email || '').toLowerCase().trim();
-                        localStorage.setItem('currentUser', emailToCheck);
-                        localStorage.setItem('isLoggedIn', 'true');
-                        if (emailToCheck === 'abdulrehmanhabib.com@gmail.com') {
-                           localStorage.setItem('currentUserRole', 'Admin');
-                           localStorage.setItem('isSuperAdmin', 'true');
-                           localStorage.setItem('userStatus', 'accepted');
-                           localStorage.removeItem('madrassaId');
-                        } else {
-                           localStorage.setItem('currentUserRole', 'Teacher');
-                           localStorage.setItem('userStatus', 'pending');
-                        }
-                        onLogin();
-                        navigate('/dashboard');
-                     }
-                   } catch (err) {
-                     console.error('Sign in error:', err);
-                     setError('گوگل سائن ان کا پاپ اپ بلاک ہو گیا ہے یا بند کر دیا گیا ہے۔ براہ کرم اپنے براؤزر میں پاپ اپس کی اجازت دیں یا نیچے دیے گئے بٹن پر کلک کر کے ایپ کو نئی ٹیب میں کھولیں۔');
-                   } finally {
-                     setIsLoading(false);
-                   }
-                }}
-                className="social-btn"
-              >
-                <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
-                <span>Google</span>
-              </button>
-
-              <button className="social-btn">
-                <img src="https://github.com/favicon.ico" className="w-4 h-4" alt="GitHub" />
-                <span>GitHub</span>
-              </button>
-            </div>
-
-            <div className="mt-8 text-center text-sm text-[#64748B]">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="ml-1 font-bold text-[#2563EB] hover:underline"
-              >
-                {isLogin ? 'Create an account' : 'Sign in'}
-              </button>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center justify-center font-urdu" dir="rtl">
-              <span className="text-xs text-slate-500 mb-2">مدارس رجسٹریشن یا سوالات کے لیے رابطہ کریں:</span>
-              <a 
-                href="https://wa.me/923435488319" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex items-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-md transition-all hover:brightness-105 active:scale-95"
-              >
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+            <div className="mt-8">
+              <div className="relative flex items-center justify-center mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#E2E8F0]"></div>
+                </div>
+                <span className="relative px-4 bg-white text-[10px] font-bold text-[#64748B] tracking-widest uppercase">
+                  Or continue with
                 </span>
-                <span>رابطہ برائے رجسٹریشن (واٹس ایپ)</span>
-              </a>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={async () => {
+                     setIsLoading(true);
+                     try {
+                       const result = await googleSignIn();
+                       if (result) {
+                          const emailToCheck = (result.user.email || '').toLowerCase().trim();
+                          
+                          // Check if it's one of the master emails
+                          const isMaster = emailToCheck === 'abdulrehmanhabib.com@gmail.com' || emailToCheck === 'jamiaarabiasirajululoomjabori@gmail.com';
+                          
+                          // Or check if it's a registered local staff/teacher
+                          let isRegisteredUser = false;
+                          let foundLocal: any = null;
+                          const localUsersStr = localStorage.getItem('users');
+                          if (localUsersStr) {
+                            try {
+                              const localUsers = JSON.parse(localUsersStr);
+                              foundLocal = localUsers.find((u: any) => u.email?.toLowerCase() === emailToCheck);
+                              if (foundLocal) {
+                                isRegisteredUser = true;
+                              }
+                            } catch(e){}
+                          }
+
+                          if (isMaster || isRegisteredUser) {
+                            localStorage.setItem('currentUser', emailToCheck);
+                            localStorage.setItem('isLoggedIn', 'true');
+                            localStorage.setItem('paymentStatus', 'paid');
+                            localStorage.setItem('userStatus', 'accepted');
+                            
+                            if (isMaster) {
+                               localStorage.setItem('currentUserRole', 'Admin');
+                               localStorage.setItem('isSuperAdmin', 'true');
+                               localStorage.removeItem('madrassaId');
+                               localStorage.removeItem('madrassaJamiaName');
+                               localStorage.removeItem('madrassaModules');
+                            } else {
+                               localStorage.setItem('currentUserRole', foundLocal?.role || 'Teacher');
+                            }
+                            onLogin();
+                            navigate('/dashboard');
+                          } else {
+                            setError('یہ گوگل اکاؤنٹ رجسٹرڈ نہیں ہے۔ براہ کرم رجسٹرڈ معلومات استعمال کریں۔');
+                          }
+                       }
+                     } catch (err) {
+                       console.error('Sign in error:', err);
+                       setError('گوگل سائن ان کا پاپ اپ بلاک ہو گیا ہے یا بند کر دیا گیا ہے۔ براہ کرم اپنے براؤزر میں پاپ اپس کی اجازت دیں یا نیچے دیے گئے بٹن پر کلک کر کے ایپ کو نئی ٹیب میں کھولیں۔');
+                     } finally {
+                       setIsLoading(false);
+                     }
+                  }}
+                  className="social-btn w-full flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-xs py-3 rounded-xl"
+                >
+                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
+                  <span>Google کے ساتھ لاگ ان کریں</span>
+                </button>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center justify-center font-urdu" dir="rtl">
+                <span className="text-xs text-slate-500 mb-2">مدارس رجسٹریشن یا سوالات کے لیے رابطہ کریں:</span>
+                <a 
+                  href="https://wa.me/923435488319" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center gap-2 bg-[#25D366] hover:bg-[#128C7E] text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-md transition-all hover:brightness-105 active:scale-95 mt-1"
+                >
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                  </span>
+                  <span>رابطہ برائے رجسٹریشن (واٹس ایپ)</span>
+                </a>
+              </div>
             </div>
-          </div>
+          </form>
         </div>
       </motion.div>
+      <AnimatePresence>
+        {showResultPortal && (
+          <PublicResultPortal onClose={() => setShowResultPortal(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
