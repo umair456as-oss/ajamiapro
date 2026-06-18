@@ -148,14 +148,14 @@ export default function ManualStudentData({ onBack }: ManualStudentDataProps) {
 
             json.forEach(item => {
                 allStudents.push({
-                    photo: 'https://via.placeholder.com/50',
-                    class: item['کلاس'] || '',
-                    name: item['نام'] || '',
-                    father: item['ولدیت'] || '',
-                    cnic: item['شناختی کارڈ'] || '',
-                    phone: item['فون'] || '',
-                    district: item['ضلع'] || '',
-                    reg: item['رجسٹریشن'] || ''
+                    photo: item['تصویر'] || 'https://via.placeholder.com/50',
+                    class: item['کلاس'] || item['درجہ'] || item['Class'] || item['class'] || item['grade'] || '',
+                    name: item['نام'] || item['Name'] || item['name'] || '',
+                    father: item['ولدیت'] || item['Father Name'] || item['fatherName'] || '',
+                    cnic: item['شناختی کارڈ'] || item['CNIC'] || item['cnic'] || item['شناختی کارڈ نمبر'] || '',
+                    phone: item['فون'] || item['رابطہ نمبر'] || item['Phone'] || item['Mobile'] || item['phone'] || '',
+                    district: item['ضلع'] || item['موجودہ ضلع'] || item['District'] || item['district'] || '',
+                    reg: item['رجسٹریشن'] || item['Reg No'] || item['regNo'] || item['رجسٹریشن نمبر'] || ''
                 });
             });
             renderTable();

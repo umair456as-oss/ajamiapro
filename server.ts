@@ -377,11 +377,21 @@ app.post('/api/upload-excel', async (req, res) => {
           fatherName: row.fatherName || row['ولدیت'] || '',
           regNo: String(fileRegNo),
           rollNo: String(row.rollNo || row['رول نمبر'] || ''),
-          class: row.class || row['درجہ'] || row['کلاس'] || '',
-          fatherPhone: row.fatherPhone || row['رابطہ نمبر'] || row.phone || row['فون'] || '',
-          dob: row.dob || '',
-          address: row.address || row['پتہ'] || row.district || row['ضلع'] || '',
-          admissionDate: row.admissionDate || new Date().toLocaleDateString()
+          class: row.class || row.grade || row['درجہ'] || row['کلاس'] || '',
+          grade: row.grade || row.class || row['درجہ'] || row['کلاس'] || '',
+          fatherPhone: row.fatherPhone || row['رابطہ نمبر'] || row.phone || row['فون'] || row.mobile || row['موبائل'] || '',
+          phone: row.phone || row['فون'] || row.fatherPhone || row['رابطہ نمبر'] || row.mobile || row['موبائل'] || '',
+          dob: row.dob || row['تاریخ پیدائش'] || '',
+          address: row.address || row.currentAddress || row['موجودہ پتہ'] || row['پتہ'] || '',
+          currentAddress: row.currentAddress || row.address || row['موجودہ پتہ'] || row['پتہ'] || '',
+          currentDistrict: row.currentDistrict || row.district || row['موجودہ ضلع'] || row['ضلع'] || '',
+          permanentAddress: row.permanentAddress || row['مستقل پتہ'] || '',
+          permanentDistrict: row.permanentDistrict || row['مستقل ضلع'] || '',
+          cnic: row.cnic || String(row['شناختی کارڈ'] || row.idCard || row['شناختی کارڈ نمبر'] || ''),
+          gender: row.gender || row['جنس'] || '',
+          section: row.section || row['سیکشن'] || '',
+          madrasaDetails: row.madrasaDetails || row['سابقہ مدرسہ'] || '',
+          admissionDate: row.admissionDate || row['تاریخ داخلہ'] || new Date().toLocaleDateString()
         };
         
         const idx = !isGenerated ? updated.findIndex(s => String(s.regNo) === String(student.regNo)) : -1;

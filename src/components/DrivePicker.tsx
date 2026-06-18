@@ -41,7 +41,7 @@ export const DrivePicker: React.FC<{ onResult: (files: any[]) => void }> = ({ on
     const picker = new window.google.picker.PickerBuilder()
       .addView(window.google.picker.ViewId.DOCS)
       .setOAuthToken(token)
-      .setDeveloperKey(import.meta.env.VITE_GOOGLE_API_KEY || '') // Placeholder, should be configured
+      .setDeveloperKey((import.meta as any).env.VITE_GOOGLE_API_KEY || '') // Placeholder, should be configured
       .setCallback((data: any) => {
         if (data.action === window.google.picker.Action.PICKED) {
           onResult(data.docs);

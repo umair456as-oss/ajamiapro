@@ -309,8 +309,17 @@ export default function AuthSystem({ onLogin }: AuthProps) {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-xs font-urdu text-right" dir="rtl">
-                {error}
+              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-xs font-urdu text-right space-y-2" dir="rtl">
+                <div>{error}</div>
+                {error.includes('نئی ٹیب') && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(window.location.href, '_blank')}
+                    className="w-full mt-2 bg-[#800000] hover:bg-[#a00000] text-white py-2 px-3 rounded-lg font-bold text-center transition-all"
+                  >
+                    نئی ٹیب میں ایپ کھولیں (Open in New Tab)
+                  </button>
+                )}
               </div>
             )}
 
@@ -366,7 +375,8 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                         navigate('/dashboard');
                      }
                    } catch (err) {
-                     setError('Google Sign-In failed');
+                     console.error('Sign in error:', err);
+                     setError('گوگل سائن ان کا پاپ اپ بلاک ہو گیا ہے یا بند کر دیا گیا ہے۔ براہ کرم اپنے براؤزر میں پاپ اپس کی اجازت دیں یا نیچے دیے گئے بٹن پر کلک کر کے ایپ کو نئی ٹیب میں کھولیں۔');
                    } finally {
                      setIsLoading(false);
                    }
