@@ -1417,7 +1417,8 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 type="text" 
                                 value={systemSettings.jamiaName}
                                 onChange={(e) => setSystemSettings({...systemSettings, jamiaName: e.target.value})}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-urdu outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
+                                disabled={!isSuperAdmin}
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-urdu outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1426,7 +1427,8 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 type="text" 
                                 value={systemSettings.registrationPrefix}
                                 onChange={(e) => setSystemSettings({...systemSettings, registrationPrefix: e.target.value})}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
+                                disabled={!isSuperAdmin}
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
                               />
                             </div>
                             <div className="space-y-2">
@@ -1435,7 +1437,8 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 type="text" 
                                 value={systemSettings.contactNumber}
                                 onChange={(e) => setSystemSettings({...systemSettings, contactNumber: e.target.value})}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-slate-700"
+                                disabled={!isSuperAdmin}
+                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
                               />
                             </div>
                           </div>

@@ -259,7 +259,7 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
                  </div>
                  <div className="flex-1 text-center">
                     <h1 style={{ fontFamily: 'Jameel Noori Nastaleeq, Noto Nastaliq Urdu', fontSize: '26px', lineHeight: '1.2' }} className="font-black text-black">
-                       جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ
+                       {systemSettings.jamiaName || 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ'}
                     </h1>
                     <div className="text-sm font-bold font-arabic mt-1 border-b border-black inline-block px-4 pb-1">
                        کشف الدرجات (Result Card)
