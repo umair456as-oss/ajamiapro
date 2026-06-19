@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Printer, Download, Search } from 'lucide-react';
+import { ChevronRight, Printer, Download, Search, Trash2, Pencil, Save } from 'lucide-react';
 import { syncToServer } from '../syncService';
 
 interface ConsolidatedResultProps {
@@ -13,9 +13,11 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
   const [selectedExamType, setSelectedExamType] = useState('');
   const [students, setStudents] = useState<any[]>([]);
   const [ledgerRecords, setLedgerRecords] = useState<any[]>([]);
+  const [editableRecords, setEditableRecords] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [systemSettings, setSystemSettings] = useState<any>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingRollNo, setEditingRollNo] = useState<string | null>(null);
 
   useEffect(() => {
     // Load system settings (e.g. monogram)
@@ -139,9 +141,10 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
     });
 
     setLedgerRecords(records);
+    setEditableRecords(records);
   }, [selectedClass, selectedExamType]);
 
-  const filteredRecords = ledgerRecords.filter((rec: any) => {
+  const filteredRecords = editableRecords.filter((rec: any) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return rec.name.toLowerCase().includes(query) || 
@@ -231,7 +234,7 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
       </div>
 
       {/* Screen Preview Container */}
-      <div className="max-w-7xl mx-auto bg-white rounded-2xl p-6 shadow-sm border border-slate-200 overflow-x-auto no-print">
+      <div className="max-w-7xl mx-auto bg-white rounded-2xl p-6 shadow-sm border border-slate-200 no-print">
         {!selectedClass || !selectedExamType ? (
           <div className="text-center py-16 text-slate-500 font-urdu max-w-md mx-auto">
             <div className="text-5xl mb-4">📊</div>
@@ -243,7 +246,7 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
             <p>منتخب فلٹر کے مطابق کوئی ریکارڈ دستیاب نہیں ہے۔</p>
           </div>
         ) : (
-          <div className="min-w-[1000px] bg-white text-black p-8 rounded-xl shadow-lg border border-slate-200">
+          <div className="h-[60vh] overflow-y-auto overflow-x-auto min-w-[1000px] bg-white text-black p-8 rounded-xl shadow-lg border border-slate-200">
             <div className="text-center mb-6">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Screen Preview Mode</span>
               <div className="border-b border-dashed border-slate-300 my-2" />
@@ -311,17 +314,44 @@ const ConsolidatedResult: React.FC<ConsolidatedResultProps> = ({ onBack }) => {
                           {row.marks[sub]}
                         </td>
                       ))}
-                      <td className="border-2 border-black py-2 text-center font-mono font-bold bg-slate-50">{row.totalObtained} / {totalMaxMarks}</td>
-                      <td className="border-2 border-black py-2 text-center">
-                        <span className={`px-2 py-0.5 rounded text-[10px] ${
-                          row.status === 'ناجح' ? 'text-emerald-700' :
-                          row.status === 'معيد' ? 'text-orange-700' :
-                          row.status === 'راسب' ? 'text-red-700' : 'text-slate-700'
-                        }`}>
-                          {row.status}
-                        </span>
+                      {editingRollNo === row.rollNo ? (
+                        <>
+                          <td className="border-2 border-black py-2 text-center text-xs font-bold">
+                            <input type="text" value={row.totalObtained} onChange={(e) => setEditableRecords(prev => prev.map(r => r.rollNo === row.rollNo ? {...r, totalObtained: e.target.value} : r))} className="w-16 text-center border-b border-blue-400" />
+                          </td>
+                          <td className="border-2 border-black py-2 text-center text-xs font-bold">
+                            <input type="text" value={row.status} onChange={(e) => setEditableRecords(prev => prev.map(r => r.rollNo === row.rollNo ? {...r, status: e.target.value} : r))} className="w-16 text-center border-b border-blue-400" />
+                          </td>
+                          <td className="border-2 border-black py-2 text-center text-xs font-bold">
+                            <input type="text" value={row.percentage} onChange={(e) => setEditableRecords(prev => prev.map(r => r.rollNo === row.rollNo ? {...r, percentage: e.target.value} : r))} className="w-12 text-center border-b border-blue-400" />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="border-2 border-black py-2 text-center font-mono font-bold bg-slate-50">{row.totalObtained} / {totalMaxMarks}</td>
+                          <td className="border-2 border-black py-2 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${
+                              row.status === 'ناجح' ? 'text-emerald-700' :
+                              row.status === 'معيد' ? 'text-orange-700' :
+                              row.status === 'راسب' ? 'text-red-700' : 'text-slate-700'
+                            }`}>
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="border-2 border-black py-2 text-center font-mono font-bold bg-slate-50">{row.percentage}</td>
+                        </>
+                      )}
+                      
+                      <td className="border-2 border-black py-2 text-center no-print">
+                        <div className="flex justify-center gap-2">
+                           <button onClick={() => setEditingRollNo(editingRollNo === row.rollNo ? null : row.rollNo)} className={editingRollNo === row.rollNo ? "text-emerald-500 hover:text-emerald-800" : "text-blue-500 hover:text-blue-800"}>
+                             {editingRollNo === row.rollNo ? <Save size={14} /> : <Pencil size={14} />}
+                           </button>
+                           <button onClick={() => setEditableRecords(editableRecords.filter(r => r.rollNo !== row.rollNo))} className="text-red-500 hover:text-red-800">
+                             <Trash2 size={14} />
+                           </button>
+                        </div>
                       </td>
-                      <td className="border-2 border-black py-2 text-center font-mono font-bold bg-slate-50">{row.percentage}</td>
                     </tr>
                   ))}
                 </tbody>

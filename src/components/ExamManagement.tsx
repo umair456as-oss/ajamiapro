@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronRight, Plus, Pencil, Trash2, FileText, Settings, Download, Upload, Printer, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, Plus, Pencil, Trash2, FileText, Settings, Download, Upload, Printer, X, Globe } from 'lucide-react';
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { syncToServer } from '../syncService';
@@ -10,6 +11,7 @@ interface ExamManagementProps {
 }
 
 const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'results' | 'types' | 'reports' | 'settings'>('results');
   const [settingsTab, setSettingsTab] = useState<'grade' | 'position'>('grade');
   const [classes, setClasses] = useState<string[]>([]);
@@ -227,11 +229,25 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
         
         {/* Close & Print Buttons */}
         <div className="fixed top-6 right-6 flex gap-4 no-print z-[110]">
+           <button 
+              onClick={() => {
+                localStorage.setItem('portal_preview_selection', JSON.stringify({
+                  className: student.className || '',
+                  examType: student.examType || '',
+                  rollNo: student.rollNo || student.registrationNo || ''
+                }));
+                navigate('/dashboard/public-result');
+              }} 
+              className="bg-teal-600 text-white p-3 rounded-xl hover:bg-teal-750 transition-colors shadow-lg shadow-teal-500/20 flex items-center gap-2 font-bold font-urdu active:scale-95"
+           >
+              <Globe size={20} />
+              Result on Public (پبلک پورٹل)
+           </button>
            <button onClick={() => window.print()} className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20 flex items-center gap-2 font-bold font-urdu">
               <Printer size={20} />
               پرنٹ کریں
            </button>
-           <button onClick={onClose} className="bg-red-500 text-white p-3 rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 flex items-center gap-2 font-bold font-urdu">
+           <button onClick={onClose} className="bg-red-500 text-white p-3 rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 flex items-center gap-2 font-bold font-urdu font-urdu">
               <X size={20} />
               بند کریں
            </button>
@@ -663,10 +679,19 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
                        <tbody>
                           {(() => {
                              const studentsList = JSON.parse(localStorage.getItem('students') || localStorage.getItem('students_list') || '[]');
-                             const classStudents = studentsList.filter((s: any) => s.grade === selectedReportClass);
+                             const classStudents = studentsList.filter((s: any) => {
+                                const sClass = String(s.grade || s.class || '').trim();
+                                const rClass = String(selectedReportClass).trim();
+                                return sClass === rClass || sClass.includes(rClass) || rClass.includes(sClass);
+                             });
                              
                              const results = JSON.parse(localStorage.getItem('all_exam_results') || '[]');
-                             const matchingExam = results.find((exam: any) => exam.className === selectedReportClass && exam.examType === selectedReportExamType);
+                             const matchingExam = results.find((exam: any) => {
+                                const eClass = String(exam.className || '').trim();
+                                const rClass = String(selectedReportClass).trim();
+                                const matchesClass = eClass === rClass || eClass.includes(rClass) || rClass.includes(eClass);
+                                return matchesClass && String(exam.examType).trim() === String(selectedReportExamType).trim();
+                             });
                              
                              const filtered = classStudents.filter((student: any) => {
                                 if (reportSearch) {
@@ -688,8 +713,29 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
 
                              return filtered.map((student: any, idx: number) => {
                                 // Find result from student record or global array
-                                const studentResult = (student.examResults || []).find((r: any) => r.examType === selectedReportExamType);
-                                const globalRecord = matchingExam ? (matchingExam.records || []).find((r: any) => String(r.rollNo) === String(student.rollNo)) : null;
+                                const studentResult = (student.examResults || []).find((r: any) => 
+                                   String(r.examType).trim() === String(selectedReportExamType).trim() &&
+                                   (String(r.className || '').includes(String(selectedReportClass)) || !r.className)
+                                );
+                                
+                                let globalRecord = null;
+                                if (matchingExam) {
+                                   globalRecord = (matchingExam.records || []).find((r: any) => 
+                                      String(r.rollNo) === String(student.rollNo) || String(r.regNo) === String(student.regNo || student.id)
+                                   );
+                                } else {
+                                   // Fallback: search in any exam sheet of the same type for this student's roll number
+                                   const fallbackExams = results.filter((exam: any) => String(exam.examType).trim() === String(selectedReportExamType).trim());
+                                   for (const exam of fallbackExams) {
+                                      const rec = (exam.records || []).find((r: any) => 
+                                         String(r.rollNo) === String(student.rollNo) || String(r.regNo) === String(student.regNo || student.id)
+                                      );
+                                      if (rec) {
+                                         globalRecord = rec;
+                                         break;
+                                      }
+                                   }
+                                }
                                 
                                 const result = studentResult || globalRecord;
                                 const totalBooks = result ? Object.keys(result.marks || {}).length : 0;
@@ -714,8 +760,9 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
                                             </span>
                                          )}
                                       </td>
-                                      <td className="py-4 px-6 text-center">
+                                      <td className="py-4 px-6 flex items-center justify-center gap-2 text-center">
                                          {result ? (
+                                            <>
                                             <button 
                                                onClick={() => setSelectedReport({
                                                   ...result,
@@ -726,11 +773,26 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
                                                   className: selectedReportClass,
                                                   examType: selectedReportExamType
                                                })}
-                                               className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 mx-auto font-urdu active:scale-95 shadow-md shadow-emerald-100"
+                                               className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 font-urdu active:scale-95 shadow-md shadow-emerald-100 whitespace-nowrap"
                                             >
                                                <FileText size={14} />
                                                رپورٹ دیکھیں
+											</button>
+											<button 
+												onClick={() => {
+													localStorage.setItem('portal_preview_selection', JSON.stringify({
+														className: selectedReportClass || '',
+														examType: selectedReportExamType || '',
+														rollNo: student.rollNo || student.registrationNo || student.id || ''
+													}));
+													navigate('/dashboard/public-result');
+												}}
+												className="bg-teal-600 hover:bg-teal-700 text-white px-2 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 mx-auto font-urdu active:scale-95 shadow-sm shadow-teal-100 whitespace-nowrap"
+											>
+												<Globe size={14} />
+												Result on Public
                                             </button>
+                                            </>
                                          ) : (
                                             <button 
                                                disabled

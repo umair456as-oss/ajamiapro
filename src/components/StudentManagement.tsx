@@ -5,7 +5,7 @@ import PrintAdmissionForm from './PrintAdmissionForm';
 import { 
   Users, X, Save, Camera, Upload, Fingerprint, 
   Smartphone, QrCode, CheckCircle2, AlertCircle, Printer,
-  RefreshCw, Check, Download
+  RefreshCw, Check, Download, Scan, Sliders, RotateCw
 } from 'lucide-react';
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { API_BASE_URL, customFetch } from '../config';
@@ -114,8 +114,23 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
   }, [editingStudent]);
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Scanner state variables
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'passport' | 'document'>('passport');
+  const [scannerImage, setScannerImage] = useState<string | null>(null);
+  const [scannerZoom, setScannerZoom] = useState<number>(100);
+  const [scannerRotate, setScannerRotate] = useState<number>(0);
+  const [scannerOffsetY, setScannerOffsetY] = useState<number>(0);
+  const [scannerOffsetX, setScannerOffsetX] = useState<number>(0);
+  const [scannerFilter, setScannerFilter] = useState<'original' | 'high_contrast' | 'b_w' | 'passport_blue' | 'passport_white'>('original');
+  const [scannerCameraOpen, setScannerCameraOpen] = useState<boolean>(false);
+  const [scannerFacingMode, setScannerFacingMode] = useState<'user' | 'environment'>('user');
+  const scannerFileInputRef = useRef<HTMLInputElement>(null);
+  const scannerWebcamRef = useRef<Webcam>(null);
 
   const [availableGrades, setAvailableGrades] = useState<string[]>([]);
   const [availableDistricts, setAvailableDistricts] = useState<string[]>([]);
@@ -190,6 +205,112 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
       setIsCameraOpen(false);
     }
   }, [webcamRef]);
+
+  const handleScannerFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScannerImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const captureScannerPhoto = useCallback(() => {
+    const imageSrc = scannerWebcamRef.current?.getScreenshot();
+    if (imageSrc) {
+      setScannerImage(imageSrc);
+      setScannerCameraOpen(false);
+    }
+  }, [scannerWebcamRef]);
+
+  const applyScanAndSave = () => {
+    if (!scannerImage) return;
+    
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      const width = scannerMode === 'passport' ? 413 : 600;
+      const height = scannerMode === 'passport' ? 531 : 850;
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx.clearRect(0, 0, width, height);
+      
+      if (scannerFilter === 'passport_blue') {
+        ctx.fillStyle = '#1e40af'; // Royal Passport Blue Background
+        ctx.fillRect(0, 0, width, height);
+      } else if (scannerFilter === 'passport_white') {
+        ctx.fillStyle = '#ffffff'; // White Background
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        ctx.fillStyle = '#f8fafc'; // light gray backdrop
+        ctx.fillRect(0, 0, width, height);
+      }
+      
+      ctx.save();
+      ctx.translate(width / 2 + scannerOffsetX, height / 2 + scannerOffsetY);
+      ctx.rotate((scannerRotate * Math.PI) / 180);
+      
+      const scale = scannerZoom / 100;
+      const imgRatio = img.width / img.height;
+      const canvasRatio = width / height;
+      let renderW, renderH;
+      
+      if (imgRatio > canvasRatio) {
+        renderH = height;
+        renderW = height * imgRatio;
+      } else {
+        renderW = width;
+        renderH = width / imgRatio;
+      }
+      
+      ctx.drawImage(img, -renderW / 2 * scale, -renderH / 2 * scale, renderW * scale, renderH * scale);
+      ctx.restore();
+      
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+      
+      if (scannerFilter === 'high_contrast' || scannerFilter === 'b_w') {
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          
+          if (scannerFilter === 'high_contrast') {
+            gray = gray > 120 ? Math.min(255, gray * 1.25) : gray * 0.75;
+            data[i] = gray;
+            data[i+1] = gray;
+            data[i+2] = gray;
+          } else {
+            const binary = gray > 128 ? 255 : 0;
+            data[i] = binary;
+            data[i+1] = binary;
+            data[i+2] = binary;
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+      
+      const resultBase64 = canvas.toDataURL('image/jpeg', 0.9);
+      handleInputChange('photo', resultBase64);
+      setIsScannerOpen(false);
+      
+      // Reset state variables
+      setScannerImage(null);
+      setScannerZoom(100);
+      setScannerRotate(0);
+      setScannerOffsetX(0);
+      setScannerOffsetY(0);
+      setScannerFilter('original');
+    };
+    img.src = scannerImage;
+  };
 
   const handleSave = async () => {
     // Show saving status
@@ -289,9 +410,18 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
                     ref={webcamRef}
                     screenshotFormat="image/jpeg"
                     className="w-full h-full object-cover"
-                    videoConstraints={{ facingMode: "user" }}
+                    videoConstraints={{ facingMode: cameraFacingMode }}
                   />
                   <div className="absolute inset-0 border-2 border-emerald-500/30 rounded-[1.8rem] pointer-events-none" />
+                  
+                  {/* Camera toggle switcher */}
+                  <button
+                    onClick={() => setCameraFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                    className="absolute top-4 right-4 bg-slate-900/80 hover:bg-slate-900 text-white px-3 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-1.5 shadow-lg active:scale-95 z-20 cursor-pointer text-xs font-bold font-urdu"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{cameraFacingMode === 'user' ? 'بیک کیمرہ پر جائیں' : 'فرنٹ کیمرہ پر جائیں'}</span>
+                  </button>
                 </div>
 
                 <div className="flex gap-4 w-full">
@@ -309,6 +439,412 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
                     <span>تصویر محفوظ کریں</span>
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Document / Passport Scanner Modal */}
+      <AnimatePresence>
+        {isScannerOpen && (
+          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[200] flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-4xl overflow-hidden shadow-2xl relative my-8"
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <button 
+                  onClick={() => {
+                    setIsScannerOpen(false);
+                    setScannerImage(null);
+                    setScannerCameraOpen(false);
+                  }}
+                  className="bg-slate-200/70 p-2 rounded-full text-slate-500 hover:bg-slate-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="text-right">
+                  <h3 className="text-xl font-bold font-urdu text-slate-800">سمارٹ دستاویز اور پاسپورٹ فوٹو سکینر</h3>
+                  <p className="text-xs text-slate-400 font-urdu mt-1">Smart Document & Passport Photo Scanning Engine</p>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-8">
+                {/* 1. If no image selected yet */}
+                {!scannerImage ? (
+                  <div className="flex flex-col gap-8">
+                    {/* Scanner Mode Switcher */}
+                    <div className="grid grid-cols-2 gap-4 bg-slate-100 p-2 rounded-2xl" dir="rtl">
+                      <button
+                        onClick={() => setScannerMode('passport')}
+                        className={`py-3 rounded-xl font-bold font-urdu text-sm transition-all ${
+                          scannerMode === 'passport' 
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' 
+                            : 'text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        پاسپورٹ سائز فوٹو سکین (3.5x4.5cm)
+                      </button>
+                      <button
+                        onClick={() => setScannerMode('document')}
+                        className={`py-3 rounded-xl font-bold font-urdu text-sm transition-all ${
+                          scannerMode === 'document' 
+                            ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' 
+                            : 'text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        دستاویز / ب-فارم / شناختی کارڈ سکین
+                      </button>
+                    </div>
+
+                    {scannerCameraOpen ? (
+                      <div className="flex flex-col items-center gap-6">
+                        <div className="w-full max-w-lg aspect-video bg-slate-950 rounded-3xl overflow-hidden border-4 border-purple-100 shadow-inner relative">
+                          {/* @ts-ignore */}
+                          <Webcam
+                            audio={false}
+                            ref={scannerWebcamRef}
+                            screenshotFormat="image/jpeg"
+                            className="w-full h-full object-cover"
+                            videoConstraints={{ facingMode: scannerFacingMode }}
+                          />
+                          {/* Scanner Camera switcher */}
+                          <button
+                            type="button"
+                            onClick={() => setScannerFacingMode(prev => prev === 'user' ? 'environment' : 'user')}
+                            className="absolute top-4 right-4 bg-purple-900/80 hover:bg-purple-900 text-white px-3 py-2 rounded-full backdrop-blur-md transition-all flex items-center gap-1.5 shadow-lg active:scale-95 z-20 cursor-pointer text-xs font-bold font-urdu"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <span>{scannerFacingMode === 'user' ? 'بیک کیمرہ پر جائیں' : 'فرنٹ کیمرہ پر جائیں'}</span>
+                          </button>
+                          {/* Guideline Masks */}
+                          {scannerMode === 'passport' ? (
+                            <div className="absolute inset-x-0 inset-y-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-[180px] h-[240px] border-4 border-dashed border-purple-400/80 rounded-2xl bg-black/40 relative">
+                                <div className="absolute top-8 left-1/2 -translate-x-1/2 w-24 h-28 border-2 border-dashed border-white/60 rounded-[50%]" />
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 h-16 border-2 border-dashed border-white/60 rounded-t-3xl" />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-[10px] text-white/90 bg-purple-900/80 px-2 py-0.5 rounded font-urdu">پاسپورٹ تصویر فریم</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-6">
+                              <div className="w-full h-full border-4 border-dashed border-purple-400/80 rounded-xl bg-black/20 flex items-center justify-center">
+                                <span className="text-xs text-white/95 bg-purple-900/80 px-3 py-1 rounded-lg font-urdu">دستاویز / ب فارم فریم کے اندر رکھیں</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-4 w-full max-w-lg overflow-hidden">
+                          <button
+                            onClick={() => setScannerCameraOpen(false)}
+                            className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold font-urdu hover:bg-slate-200 transition-all cursor-pointer"
+                          >
+                            منسوخ کریں
+                          </button>
+                          <button
+                            onClick={captureScannerPhoto}
+                            className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold font-urdu flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                          >
+                            <Camera className="w-5 h-5" />
+                            <span>سورس کیپچر کریں</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6 font-urdu">
+                        {/* Live Camera Source */}
+                        <div 
+                          onClick={() => setScannerCameraOpen(true)}
+                          className="border-2 border-dashed border-purple-200 hover:border-purple-500 bg-purple-50/20 hover:bg-purple-50 p-8 rounded-3xl cursor-pointer transition-all flex flex-col items-center justify-center text-center group gap-4"
+                        >
+                          <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Camera className="w-8 h-8" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-slate-800">لائیو کیمرہ سکینر</h4>
+                            <p className="text-xs text-slate-500 mt-1">ڈائریکٹ کیمرہ آن کر کے تصویر یا دستاویز حاصل کریں</p>
+                          </div>
+                        </div>
+
+                        {/* File Upload Source */}
+                        <div 
+                          onClick={() => scannerFileInputRef.current?.click()}
+                          className="border-2 border-dashed border-blue-200 hover:border-blue-500 bg-blue-50/20 hover:bg-blue-50 p-8 rounded-3xl cursor-pointer transition-all flex flex-col items-center justify-center text-center group gap-4"
+                        >
+                          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Upload className="w-8 h-8" />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-slate-800">گوہا فائل یا تصویر اپ لوڈ کریں</h4>
+                            <p className="text-xs text-slate-500 mt-1">پہلے سے موجود تصویر فائل منتخب کریں</p>
+                          </div>
+                          <input 
+                            type="file" 
+                            ref={scannerFileInputRef} 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={handleScannerFileUpload}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* 2. Interactive Editing workbench */
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-right font-urdu" dir="rtl">
+                    
+                    {/* Visual Preview column */}
+                    <div className="lg:col-span-5 flex flex-col items-center justify-center bg-slate-50 p-6 rounded-[2rem] border border-slate-100 relative overflow-hidden">
+                      <span className="text-xs font-bold text-purple-600 bg-purple-50 border border-purple-100 px-3 py-1 rounded-full mb-4">
+                        {scannerMode === 'passport' ? 'پاسپورٹ سائز آٹو کراپ پریویو' : 'دستاویز سکینڈ ڈرافٹ پریویو'}
+                      </span>
+                      
+                      {/* Interactive Bounding box mock */}
+                      <div 
+                        className={`overflow-hidden relative bg-slate-200 border-4 border-white shadow-xl transition-all ${
+                          scannerMode === 'passport' ? 'w-[180px] h-[230px] rounded-xl' : 'w-[250px] h-[340px] rounded-lg'
+                        }`}
+                        style={{
+                          backgroundColor: scannerFilter === 'passport_blue' ? '#1e40af' : scannerFilter === 'passport_white' ? '#ffffff' : '#f1f5f9'
+                        }}
+                      >
+                        {/* Dynamic Render Image with combined filters & transformations */}
+                        <img 
+                          src={scannerImage} 
+                          alt="To scan" 
+                          className="absolute origin-center transition-transform pointer-events-none select-none max-w-none"
+                          style={{
+                            left: '50%',
+                            top: '50%',
+                            transform: `translate(-50%, -50%) translate(${scannerOffsetX}px, ${scannerOffsetY}px) scale(${scannerZoom / 100}) rotate(${scannerRotate}deg)`,
+                            filter: scannerFilter === 'high_contrast' 
+                              ? 'contrast(1.5) brightness(1.2) saturate(0)'
+                              : scannerFilter === 'b_w' 
+                              ? 'contrast(2.0) brightness(1.3) grayscale(100)'
+                              : 'none',
+                            maxHeight: '100%',
+                            maxWidth: '100%',
+                          }}
+                        />
+
+                        {/* Guide Overlays */}
+                        {scannerMode === 'passport' && (
+                          <div className="absolute inset-0 pointer-events-none border-2 border-emerald-500/40 rounded-lg flex items-center justify-center">
+                            <div className="absolute w-[80%] h-[60%] border border-dashed border-white/50 rounded-[50%] top-[12%]" />
+                            <div className="absolute w-[90%] h-[30%] border border-dashed border-white/50 rounded-t-2xl bottom-[5%]" />
+                          </div>
+                        )}
+                        {scannerMode === 'document' && (
+                          <div className="absolute inset-0 pointer-events-none border border-emerald-500/50 flex items-center justify-center">
+                            <div className="w-[90%] h-[92%] border border-dashed border-white/40 rounded" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <p className="text-[11px] text-slate-400 mt-4 text-center">
+                        فریم میں چہرہ یا برائے دستاویز سیٹ کرنے کے لئے نیچے دیئے گئے ایڈجسٹمنٹ سلائیڈرز استعمال کریں
+                      </p>
+                    </div>
+
+                    {/* Controls & Presets columns */}
+                    <div className="lg:col-span-7 space-y-6">
+                      
+                      {/* Presets & Filters */}
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700 mb-3 block">سکینر فلٹرز (Enhance & Filters)</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                          <button
+                            onClick={() => setScannerFilter('original')}
+                            className={`py-2 px-3 rounded-lg border transition-all truncate text-center cursor-pointer ${
+                              scannerFilter === 'original' 
+                                ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            اصل رنگ (Normal)
+                          </button>
+                          
+                          {scannerMode === 'passport' && (
+                            <>
+                              <button
+                                onClick={() => setScannerFilter('passport_blue')}
+                                className={`py-2 px-3 rounded-lg border transition-all truncate text-center cursor-pointer ${
+                                  scannerFilter === 'passport_blue' 
+                                    ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                نیلا بیک گراؤنڈ
+                              </button>
+                              <button
+                                onClick={() => setScannerFilter('passport_white')}
+                                className={`py-2 px-3 rounded-lg border transition-all truncate text-center cursor-pointer ${
+                                  scannerFilter === 'passport_white' 
+                                    ? 'bg-slate-50 text-slate-900 border-slate-400 font-bold' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                سفید بیک گراؤنڈ
+                              </button>
+                            </>
+                          )}
+
+                          {scannerMode === 'document' && (
+                            <>
+                              <button
+                                onClick={() => setScannerFilter('high_contrast')}
+                                className={`py-2 px-3 rounded-lg border transition-all truncate text-center cursor-pointer ${
+                                  scannerFilter === 'high_contrast' 
+                                    ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                ہائی ٹیمپلیٹ پیپر
+                              </button>
+                              <button
+                                onClick={() => setScannerFilter('b_w')}
+                                className={`py-2 px-3 rounded-lg border transition-all truncate text-center cursor-pointer ${
+                                  scannerFilter === 'b_w' 
+                                    ? 'bg-purple-50 text-purple-700 border-purple-300 font-bold' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                کالا اور سفید (B&W)
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Manual Alignment Sliders */}
+                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
+                          <button 
+                            onClick={() => {
+                              setScannerZoom(100);
+                              setScannerRotate(0);
+                              setScannerOffsetX(0);
+                              setScannerOffsetY(0);
+                            }}
+                            className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 font-bold cursor-pointer"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            ری سیٹ کریں
+                          </button>
+                          <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <Sliders className="w-4 h-4 text-purple-600" />
+                            تصویر الائنمنٹ کنٹرولز
+                          </h4>
+                        </div>
+
+                        {/* Zoom Factor */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-600 font-urdu">
+                            <span>{scannerZoom}%</span>
+                            <span>آٹو زوم سائز (Scale)</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="50"
+                            max="300"
+                            value={scannerZoom}
+                            onChange={(e) => setScannerZoom(Number(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+                          />
+                        </div>
+
+                        {/* Rotate Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-600 font-urdu">
+                            <span>{scannerRotate}°</span>
+                            <span>گھماؤ (Rotation)</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => setScannerRotate(prev => (prev - 90) % 360)}
+                              className="bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-lg text-xs cursor-pointer"
+                              title="90 ڈگری بائیں گھمائیں"
+                            >
+                              -90° ↺
+                            </button>
+                            <input 
+                              type="range"
+                              min="-180"
+                              max="180"
+                              value={scannerRotate}
+                              onChange={(e) => setScannerRotate(Number(e.target.value))}
+                              className="flex-1 accent-purple-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+                            />
+                            <button
+                              onClick={() => setScannerRotate(prev => (prev + 90) % 360)}
+                              className="bg-white hover:bg-slate-100 border border-slate-200 p-1.5 rounded-lg text-xs cursor-pointer"
+                              title="90 ڈگری دائیں گھمائیں"
+                            >
+                              +90° ↻
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* X Offset */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-600 font-urdu">
+                            <span>{scannerOffsetX}px</span>
+                            <span>افقی پوزیشن (X Position)</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="-200"
+                            max="200"
+                            value={scannerOffsetX}
+                            onChange={(e) => setScannerOffsetX(Number(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+                          />
+                        </div>
+
+                        {/* Y Offset */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-600 font-urdu">
+                            <span>{scannerOffsetY}px</span>
+                            <span>عمودی پوزیشن (Y Position)</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="-200"
+                            max="200"
+                            value={scannerOffsetY}
+                            onChange={(e) => setScannerOffsetY(Number(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Control buttons */}
+                      <div className="flex gap-4">
+                        <button
+                          onClick={() => setScannerImage(null)}
+                          className="flex-1 py-3.5 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all text-sm cursor-pointer"
+                        >
+                          دوبارہ سکین کریں
+                        </button>
+                        <button
+                          onClick={applyScanAndSave}
+                          className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/20 text-sm cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span>تخلیق کریں اور تصویر محفوظ کریں</span>
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>
@@ -689,8 +1225,10 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
                   >
                     {/* Photo Section */}
                     <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 flex flex-col items-center">
-                      <h3 className="text-lg font-bold font-urdu text-slate-800 mb-6">طالب علم کی تصویر</h3>
-                      <div className="w-48 h-48 bg-white rounded-3xl border-2 border-slate-200 flex items-center justify-center mb-6 shadow-inner overflow-hidden relative group">
+                      <h3 className="text-lg font-bold font-urdu text-slate-800 mb-1">طالب علم کی تصویر</h3>
+                      <p className="text-xs text-slate-400 font-urdu mb-6">آٹو کراپ سائز: پاسپورٹ سائز (3.5x4.5) سینٹی میٹر</p>
+                      
+                      <div className="w-[150px] h-[200px] bg-white rounded-2xl border-2 border-slate-200 flex items-center justify-center mb-6 shadow-inner overflow-hidden relative group">
                         {formData.photo ? (
                           <>
                             <img src={formData.photo} alt="Student" className="w-full h-full object-cover" />
@@ -704,10 +1242,14 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
                             </div>
                           </>
                         ) : (
-                          <Camera className="w-16 h-16 text-slate-300" />
+                          <div className="flex flex-col items-center gap-2 text-center p-3">
+                            <Camera className="w-10 h-10 text-slate-300" />
+                            <span className="text-[10px] text-slate-400 font-urdu">پاسپورٹ سائز تصویر</span>
+                          </div>
                         )}
                       </div>
-                      <div className="flex gap-3">
+                      
+                      <div className="flex flex-wrap justify-center gap-3">
                         <input 
                           type="file" 
                           ref={fileInputRef} 
@@ -717,17 +1259,24 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
                         />
                         <button 
                           onClick={() => setIsCameraOpen(true)}
-                          className="bg-emerald-500 text-white px-6 py-2 rounded-xl text-xs font-urdu flex items-center gap-2 hover:bg-emerald-600 transition-all"
+                          className="bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-urdu flex items-center gap-2 hover:bg-emerald-600 transition-all"
                         >
                           <Camera className="w-4 h-4" />
                           <span>Live Camera</span>
                         </button>
                         <button 
                           onClick={() => fileInputRef.current?.click()}
-                          className="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-urdu flex items-center gap-2 hover:bg-blue-700 transition-all"
+                          className="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-urdu flex items-center gap-2 hover:bg-blue-700 transition-all"
                         >
                           <Upload className="w-4 h-4" />
                           <span>Upload</span>
+                        </button>
+                        <button 
+                          onClick={() => setIsScannerOpen(true)}
+                          className="bg-purple-600 text-white px-5 py-2 rounded-xl text-xs font-urdu flex items-center gap-2 hover:bg-purple-700 transition-all shadow-md shadow-purple-500/20 active:scale-95"
+                        >
+                          <Scan className="w-4 h-4" />
+                          <span>دستاویز / فوٹو سکینر</span>
                         </button>
                       </div>
                     </div>

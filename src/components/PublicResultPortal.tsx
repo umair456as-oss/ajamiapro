@@ -18,7 +18,7 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
   // Custom states matching the screenshot's layout
   const [activeTab, setActiveTab] = useState<'individual' | 'madrassa_maktab' | 'review' | 'madrassa_hifz'>('individual');
   const [gender, setGender] = useState<'بنین' | 'بنات'>('بنین');
-  const [examType, setExamType] = useState<'سالانہ' | 'ضمنی'>('سالانہ');
+  const [examType, setExamType] = useState<string>('سالانہ');
   const [selectedYear, setSelectedYear] = useState('1447 ھ');
   
   // All years hijri & solar
@@ -103,6 +103,40 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
     fetchMadrasas();
   }, []);
 
+  // Sync / load preview selection on mount
+  useEffect(() => {
+    const preview = localStorage.getItem('portal_preview_selection');
+    if (preview) {
+      try {
+        const parsed = JSON.parse(preview);
+        if (parsed.className) {
+          const found = classesList.find(c => c.includes(parsed.className) || parsed.className.includes(c));
+          if (found) {
+            setSelectedClass(found);
+          } else {
+            setSelectedClass(parsed.className);
+          }
+        }
+        if (parsed.examType) {
+          setExamType(parsed.examType);
+        }
+        if (parsed.rollNo) {
+          setRegInput(parsed.rollNo);
+        }
+        // Auto-trigger search if rollNo was provided
+        if (parsed.rollNo) {
+          setTimeout(() => {
+            const btn = document.getElementById('search-submit-btn');
+            if (btn) btn.click();
+          }, 300);
+        }
+        localStorage.removeItem('portal_preview_selection');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, [madrasas]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -112,7 +146,9 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
     setAvailableExams([]);
     setActiveReport(null);
 
-    if (!regInput.trim()) {
+    const queryStr = regInput.trim().toLowerCase();
+
+    if (!queryStr) {
       setErrorMsg('براہ کرم طالب علم کا رول نمبر یا رجسٹریشن نمبر درج کریں۔');
       return;
     }
@@ -141,7 +177,6 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
       const fetchedDocs: any[] = await Promise.all(fetchPromises);
       const tempResults: any[] = [];
 
-      const queryStr = regInput.trim().toLowerCase();
       // Extract numeric year from selecting: '1447 ھ' -> '1447'
       const normalizedYear = selectedYear.replace(/[^\d]/g, '');
 
@@ -171,13 +206,8 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
             matchesClass = sClass.includes(classQuery) || sClass.includes(selectedClass) || selectedClass.includes(sClass);
           }
 
-          // 3. Gender Filter
-          let matchesGender = true;
-          if (gender === 'بنین') {
-            matchesGender = sGender.includes('مرد') || sGender.includes('بنین') || sGender.includes('boy') || sGender.includes('male') || !sGender;
-          } else {
-            matchesGender = sGender.includes('عورت') || sGender.includes('بنات') || sGender.includes('girl') || sGender.includes('female');
-          }
+          // 3. Gender Filter bypassed since Banin/Banat buttons are removed
+          const matchesGender = true;
 
           return matchesClass && matchesGender;
         });
@@ -191,6 +221,50 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
           });
         });
       });
+
+      // Local storage fallback for instant local student results preview
+      try {
+        const localMadrassaId = localStorage.getItem('madrassaId') || 'madrassa-default';
+        const localStudents = JSON.parse(localStorage.getItem('students') || localStorage.getItem('students_list') || '[]');
+        const localAllExamResults = JSON.parse(localStorage.getItem('all_exam_results') || '[]');
+        const localSystemSettings = JSON.parse(localStorage.getItem('system_settings') || '{}');
+        
+        const localMatches = localStudents.filter((s: any) => {
+          const sReg = String(s.regNo || s.id || '').toLowerCase().trim();
+          const sRoll = String(s.rollNo || '').toLowerCase().trim();
+          const sClass = String(s.grade || s.class || '').toLowerCase().trim();
+          
+          const matchesId = sReg.endsWith(queryStr) || sReg === queryStr || sRoll === queryStr;
+          if (!matchesId) return false;
+
+          let matchesClass = true;
+          if (activeTab === 'madrassa_hifz') {
+            matchesClass = sClass.includes('حفظ');
+          } else if (selectedClass) {
+            const classQuery = selectedClass.replace(/درجہ/g, '').trim().split(' ')[0]; 
+            matchesClass = sClass.includes(classQuery) || sClass.includes(selectedClass) || selectedClass.includes(sClass);
+          }
+          return matchesClass;
+        });
+
+        localMatches.forEach((student: any) => {
+          const alreadyAdded = tempResults.some(r => String(r.student.rollNo) === String(student.rollNo) || String(r.student.regNo || r.student.id) === String(student.regNo || student.id));
+          if (!alreadyAdded) {
+            tempResults.push({
+              student,
+              madrassaData: {
+                students: localStudents,
+                all_exam_results: localAllExamResults,
+                system_settings: localSystemSettings
+              },
+              madrassaId: localMadrassaId,
+              madrassaName: localSystemSettings.jamiaName || 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ'
+            });
+          }
+        });
+      } catch (locErr) {
+        console.warn('Local fallback search error:', locErr);
+      }
 
       if (tempResults.length === 0) {
         setErrorMsg('آپ کے درج کردہ معیار (سال، جنس، درجہ، اور رول نمبر) کے مطابق کوئی نتیجہ نہیں ملا۔ برائے مہربانی درست معلومات درج کریں۔');
@@ -509,67 +583,26 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
               {(activeTab === 'individual' || activeTab === 'madrassa_hifz') && (
                 <form onSubmit={handleSearch} className="space-y-4">
                   
-                  {/* Gender and Exam Toggles precisely mimicking the Screenshot */}
-                  <div className="flex flex-wrap items-center justify-center gap-8 py-4 border-b border-dashed border-slate-100">
-                    
-                    {/* Banin/Banat Selection */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setGender('بنات')}
-                          className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#2196f3] transition-colors"
-                        >
-                          <span className="text-sm font-semibold">بنات</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'بنات' ? 'border-[#2196f3] bg-[#ddf3fc]' : 'border-slate-300'}`}>
-                            {gender === 'بنات' && <div className="w-3 h-3 bg-[#2196f3] rounded-full" />}
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setGender('بنین')}
-                          className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#2196f3] transition-colors"
-                        >
-                          <span className="text-sm font-semibold">بنین</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${gender === 'بنین' ? 'border-[#2196f3] bg-[#ddf3fc]' : 'border-slate-300'}`}>
-                            {gender === 'بنین' && <div className="w-3 h-3 bg-[#2196f3] rounded-full" />}
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Annual / Supplementary Selection */}
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => setExamType('ضمنی')}
-                          className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#2196f3] transition-colors"
-                        >
-                          <span className="text-sm font-semibold">ضمنی</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${examType === 'ضمنی' ? 'border-[#2196f3] bg-[#ddf3fc]' : 'border-slate-300'}`}>
-                            {examType === 'ضمنی' && <div className="w-3 h-3 bg-[#2196f3] rounded-full" />}
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setExamType('سالانہ')}
-                          className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#2196f3] transition-colors"
-                        >
-                          <span className="text-sm font-semibold">سالانہ</span>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${examType === 'سالانہ' ? 'border-[#2196f3] bg-[#ddf3fc]' : 'border-slate-300'}`}>
-                            {examType === 'سالانہ' && <div className="w-3 h-3 bg-[#2196f3] rounded-full" />}
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                  </div>
-
                   {/* Form fields in clean grid column with labels on the right, input on the left */}
                   <div className="grid grid-cols-1 gap-5 text-right pt-2">
+
+                    {/* Choose Exam Type dropdown */}
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                      <label className="text-md font-bold text-slate-700 block md:w-36 shrink-0 font-urdu">امتحان کی قسم منتخب کریں</label>
+                      <select
+                        value={examType}
+                        onChange={(e) => setExamType(e.target.value)}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-[#2196f3] focus:bg-white transition-all text-right font-urdu"
+                      >
+                        <option value="سالانہ">سالانہ (Annual)</option>
+                        <option value="جائزہ">جائزہ / ہفتہ وار (Assessment / Weekly)</option>
+                        <option value="ضمنی">ضمنی (Supplementary)</option>
+                        <option value="سہ ماہی">سہ ماہی (Quarterly)</option>
+                        <option value="ششماہی">ششماہی (Half-yearly)</option>
+                        <option value="ماہانہ">ماہانہ (Monthly)</option>
+                        <option value="">تمام امتحانات (All Exams)</option>
+                      </select>
+                    </div>
                     
                     {/* Years Choice */}
                     <div className="flex flex-col md:flex-row items-center gap-4">
@@ -620,6 +653,7 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
                   <div className="pt-4">
                     <button
                       type="submit"
+                      id="search-submit-btn"
                       disabled={searchLoading}
                       className="w-full py-3.5 bg-[#4fc3f7] hover:bg-[#29b6f6] text-slate-900 font-bold font-urdu rounded-2xl transition-all shadow-md shadow-blue-105 hover:shadow-lg flex items-center justify-center gap-2 font-black text-base"
                     >

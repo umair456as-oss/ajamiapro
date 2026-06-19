@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ChevronRight, X, Trash2, Pencil, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, ChevronRight, X, Trash2, Pencil, Plus, Printer, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getMadrassaName } from '../config';
 
 interface ManualAttendanceProps {
   onBack: () => void;
@@ -131,6 +132,7 @@ const ManualAttendance: React.FC<ManualAttendanceProps> = ({ onBack }) => {
           {attendanceType === 'student' ? 'طلبہ کی حاضری' : 'اساتذہ کی حاضری'}
         </h2>
         
+          {/* Header */}
         <div className="flex items-center gap-4">
           <div className="bg-slate-100 p-1 rounded-xl flex gap-1">
             <button 
@@ -148,6 +150,7 @@ const ManualAttendance: React.FC<ManualAttendanceProps> = ({ onBack }) => {
           {isSaved && (
             <span className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-lg text-xs font-bold">حاضری محفوظ کر لی گئی ہے!</span>
           )}
+
           <button 
             onClick={onBack}
             className="bg-red-500 text-white px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-red-600 shadow-md"
@@ -350,9 +353,6 @@ const ManualAttendance: React.FC<ManualAttendanceProps> = ({ onBack }) => {
                               </td>
                             </tr>
                           ))}
-                          {teacherRecords.length === 0 && (
-                            <tr><td colSpan={8} className="p-10 text-center text-slate-400">کوئی ریکارڈ موجود نہیں ہے۔</td></tr>
-                          )}
                         </tbody>
                      </table>
                    </div>
@@ -362,6 +362,7 @@ const ManualAttendance: React.FC<ManualAttendanceProps> = ({ onBack }) => {
           )}
         </AnimatePresence>
       </div>
+
     </div>
   );
 };
