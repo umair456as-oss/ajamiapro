@@ -57,21 +57,23 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Fetch latest users from Firestore to dynamically synchronize new registrations
-      try {
-        const tenantId = 'master';
-        const docRef = doc(db, 'madrassa_data', `${tenantId}_users`);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const docPayload = docSnap.data();
-          if (docPayload && Array.isArray(docPayload.value)) {
-            localStorage.setItem('users', JSON.stringify(docPayload.value));
-            window.dispatchEvent(new Event('storage_updated'));
+      // Fetch latest users from Firestore (non-blocking)
+      (async () => {
+        try {
+          const tenantId = 'master';
+          const docRef = doc(db, 'madrassa_data', `${tenantId}_users`);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const docPayload = docSnap.data();
+            if (docPayload && Array.isArray(docPayload.value)) {
+              localStorage.setItem('users', JSON.stringify(docPayload.value));
+              window.dispatchEvent(new Event('storage_updated'));
+            }
           }
+        } catch (firestoreErr) {
+          console.warn('Could not fetch latest users from Firestore:', firestoreErr);
         }
-      } catch (firestoreErr) {
-        console.warn('Could not fetch latest users from Firestore:', firestoreErr);
-      }
+      })();
 
       // Check master email 1 (Jamia Administrator)
       if (normalizedEmail === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
@@ -173,6 +175,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
         onLogin();
         navigate('/dashboard');
+        setIsLoading(false);
         return;
       }
 
@@ -197,6 +200,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
           
           onLogin();
           navigate('/dashboard');
+          setIsLoading(false);
           return;
         }
       }
