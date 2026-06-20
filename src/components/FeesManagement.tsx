@@ -58,10 +58,23 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
     discount: 0
   });
 
-  const [systemSettings] = useState(() => {
+  const [systemSettings, setSystemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
     return saved ? JSON.parse(saved) : { jamiaName: 'جامعہ عربیہ سراج العلوم', monogram: '' };
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem('system_settings');
+        if (saved) {
+          setSystemSettings(JSON.parse(saved));
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('storage_updated', handleUpdate);
+    return () => window.removeEventListener('storage_updated', handleUpdate);
+  }, []);
 
   useEffect(() => {
     fetchDailyCollection();

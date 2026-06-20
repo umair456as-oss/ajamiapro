@@ -39,7 +39,7 @@ export default function AccountManagement() {
     return () => window.removeEventListener('storage_updated', handleUpdate);
   }, []);
 
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
+  const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
   
   const defaultPermissions = {
     'Admin': {
@@ -165,11 +165,23 @@ export default function AccountManagement() {
 
     // 1. Get latest from localStorage to avoid overwriting
     const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    
+    // Check duplicates
+    const isDuplicate = currentUsers.some((u: any) => 
+      u.username?.toLowerCase() === newUser.username.toLowerCase() ||
+      (newUser.email && u.email?.toLowerCase() === newUser.email.toLowerCase())
+    );
+    if (isDuplicate) {
+      showNotice('error', 'یہ یوزر نیم یا ای میل پہلے سے موجود ہے');
+      return;
+    }
+
     const updatedUsers = [...currentUsers, { 
       id: Date.now(), 
       ...newUser, 
-      status: 'pending', 
-      paymentStatus: 'unpaid' 
+      email: newUser.email || newUser.username, // Fallback email to username
+      status: 'accepted', 
+      paymentStatus: 'paid' 
     }];
     
     // 2. Update local state and localStorage
@@ -177,19 +189,24 @@ export default function AccountManagement() {
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     // 3. Clear form
-    setNewUser({ username: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
+    setNewUser({ username: '', email: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
     
     // 4. Notify and sync
     window.dispatchEvent(new Event('storage_updated'));
     await syncToServer(); // Ensure it goes to the server
-    showNotice('success', 'اکاؤنٹ کے لیے درخواست بھیج دی گئی');
+    showNotice('success', 'اکاؤنٹ کامیابی سے بن گیا اور فعال کر دیا گیا ہے');
   };
 
-  const handleUpdateUserStatus = async (id: number, status: string, paymentStatus?: string) => {
+  const handleUpdateUserStatus = async (id: number, status: string, paymentStatus?: string, role?: string) => {
     const currentUsers = JSON.parse(localStorage.getItem('users') || '[]');
     const updatedUsers = currentUsers.map((u: any) => {
       if (u.id === id) {
-        return { ...u, status: status || u.status, paymentStatus: paymentStatus || u.paymentStatus || 'unpaid' };
+        return { 
+          ...u, 
+          status: status || u.status, 
+          paymentStatus: paymentStatus || u.paymentStatus || 'unpaid',
+          role: role || u.role 
+        };
       }
       return u;
     });
@@ -207,6 +224,7 @@ export default function AccountManagement() {
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     window.dispatchEvent(new Event('storage_updated'));
     await syncToServer(); // Ensure it goes to the server
+    showNotice('success', 'اکاؤنٹ ریکارڈ کامیابی سے ڈیلیٹ کر دیا گیا');
   };
 
   return (
@@ -252,7 +270,7 @@ export default function AccountManagement() {
         <div className="space-y-8 animate-in fade-in duration-300">
           <div className="bg-slate-50 border border-slate-200 rounded-[32px] p-8">
             <h3 className="text-lg font-bold text-slate-800 mb-6">نیا اکاؤنٹ بنائیں</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
               <div className="space-y-2">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-bold text-slate-600 block">یوزر نیم (Username)</label>
@@ -262,16 +280,26 @@ export default function AccountManagement() {
                   type="text" 
                   value={newUser.username}
                   onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-sans" 
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-600 block">پاسورڈ</label>
+                <label className="text-sm font-bold text-slate-600 block">ای میل (Email / User Code)</label>
+                <input 
+                  type="text" 
+                  value={newUser.email}
+                  placeholder="مثال: user@gmail.com (غیر لازمی)"
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-sans text-left" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-600 block">پاسورڈ (Password)</label>
                 <input 
                   type="text" 
                   value={newUser.password}
                   onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-mono" 
                 />
               </div>
               <div className="space-y-2">
@@ -289,7 +317,7 @@ export default function AccountManagement() {
                   type="text" 
                   value={newUser.whatsapp}
                   onChange={(e) => setNewUser({...newUser, whatsapp: e.target.value})}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" 
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-mono" 
                 />
               </div>
               <div className="space-y-2">
@@ -302,29 +330,51 @@ export default function AccountManagement() {
                   {roles.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
-              <button 
-                onClick={handleCreateAccount}
-                className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
-              >
-                اکاؤنٹ بنائیں
-              </button>
+              <div className="md:col-span-3 flex justify-end">
+                <button 
+                  onClick={handleCreateAccount}
+                  className="bg-blue-600 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                >
+                  اکاؤنٹ بنائیں (Create Account)
+                </button>
+              </div>
             </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex flex-col gap-1 text-xs text-amber-800 font-urdu leading-relaxed">
+            <span className="font-bold text-sm">💡 فائر بیس آتھنٹیکیشن (Firebase Authentication Console) مطابقت:</span>
+            <span>اگر آپ نے <a href="https://console.firebase.google.com/project/aphapk-8160f/authentication/users" target="_blank" rel="noopener noreferrer" className="underline font-bold font-sans">Firebase Console</a> پر نئے اکاؤنٹس مینوئل بنائے ہیں، تو ان کو یہاں شامل کرنے کے لیے ان کا ای میل ایڈریس، یوزر نیم اور پاس ورڈ درج کر کے اکاؤنٹ بنائیں۔ جب وہ ممبر پہلی مرتبہ لاگ ان کرے گا، ان کا اکاؤنٹ خود بخود تصدیق ہو جائے گا اور یہاں مقرر کردہ "رول" اور "اختیارات" فوری لاگو ہوں گے۔</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-sm">
             <table className="w-full text-right">
               <thead className="bg-slate-800 text-white">
                 <tr>
-                  <th className="py-4 px-6 font-bold">یوزر نیم</th>
+                  <th className="py-4 px-6 font-bold">صارف / ای میل (User & Email)</th>
+                  <th className="py-4 px-6 font-bold">رول مقررہ (Role Selection)</th>
                   <th className="py-4 px-6 font-bold">اسٹیٹس</th>
                   <th className="py-4 px-6 font-bold">پیمنٹ</th>
                   <th className="py-4 px-6 font-bold">عمل</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 font-urdu">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6 font-bold text-slate-800">{u.username} ({u.role})</td>
+                    <td className="py-4 px-6 font-bold text-slate-800">
+                      <div className="text-sm font-sans">{u.username}</div>
+                      <div className="text-[11px] text-slate-400 font-sans font-normal select-all">{u.email || u.username}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <select
+                        value={u.role || 'Teacher'}
+                        onChange={(e) => handleUpdateUserStatus(u.id, u.status, u.paymentStatus, e.target.value)}
+                        className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold font-sans outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        {roles.map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-4 px-6">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                         u.status === 'accepted' ? 'bg-emerald-100 text-emerald-800' : 
@@ -341,16 +391,16 @@ export default function AccountManagement() {
                       </span>
                     </td>
                     <td className="py-4 px-6 flex gap-2">
-                       {u.status !== 'accepted' && <button onClick={() => handleUpdateUserStatus(u.id, 'accepted')} className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200">قبول کریں</button>}
-                       {u.status !== 'rejected' && <button onClick={() => handleUpdateUserStatus(u.id, 'rejected')} className="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">مسترد</button>}
-                       {u.paymentStatus !== 'paid' && <button onClick={() => handleUpdateUserStatus(u.id, u.status, 'paid')} className="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200">ادائیگی کی</button>}
-                       <button onClick={() => handleDeleteUser(u.id)} className="bg-slate-100 text-slate-600 px-3 py-1 rounded text-xs font-bold hover:bg-slate-200">ڈیلیٹ</button>
+                       {u.status !== 'accepted' && <button onClick={() => handleUpdateUserStatus(u.id, 'accepted')} className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200 transition-all">قبول کریں</button>}
+                       {u.status !== 'rejected' && <button onClick={() => handleUpdateUserStatus(u.id, 'rejected')} className="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200 transition-all">مسترد</button>}
+                       {u.paymentStatus !== 'paid' && <button onClick={() => handleUpdateUserStatus(u.id, u.status, 'paid')} className="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200 transition-all">ادائیگی کی</button>}
+                       <button onClick={() => handleDeleteUser(u.id)} className="bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 transition-all">ڈیلیٹ</button>
                     </td>
                   </tr>
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">کوئی اکاؤنٹ نہیں بنا</td>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">کوئی اکاؤنٹ نہیں بنا</td>
                   </tr>
                 )}
               </tbody>

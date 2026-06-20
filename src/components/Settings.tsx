@@ -2164,45 +2164,33 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                 </div>
                               )}
                             </div>
-                            {isSuperAdmin ? (
-                              <button
-                                onClick={() => {
-                                  const input = document.createElement("input");
-                                  input.type = "file";
-                                  input.accept = "image/*";
-                                  input.onchange = (e: any) => {
-                                    const file = e.target.files[0];
-                                    const reader = new FileReader();
-                                    reader.onload = (re) => {
-                                      setSystemSettings({
-                                        ...systemSettings,
-                                        monogram: re.target?.result as string,
-                                      });
-                                    };
-                                    reader.readAsDataURL(file);
+                            <button
+                              onClick={() => {
+                                const input = document.createElement("input");
+                                input.type = "file";
+                                input.accept = "image/*";
+                                input.onchange = (e: any) => {
+                                  const file = e.target.files[0];
+                                  const reader = new FileReader();
+                                  reader.onload = (re) => {
+                                    setSystemSettings({
+                                      ...systemSettings,
+                                      monogram: re.target?.result as string,
+                                    });
                                   };
-                                  input.click();
-                                }}
-                                className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-2xl font-urdu font-bold text-xs hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
-                              >
-                                <Plus className="w-4 h-4" />
-                                <span>مونوگرام اپلوڈ کریں</span>
-                              </button>
-                            ) : (
-                              <div className="mt-6 text-xs font-urdu text-amber-600 bg-amber-50 border border-amber-100 p-3 rounded-xl text-center">
-                                ⚠️ مونوگرام صرف سپر ایڈمن ہی تبدیل کر سکتا ہے۔
-                              </div>
-                            )}
+                                  reader.readAsDataURL(file);
+                                };
+                                input.click();
+                              }}
+                              className="mt-8 bg-blue-600 text-white px-8 py-3 rounded-2xl font-urdu font-bold text-xs hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span>مونوگرام اپلوڈ کریں</span>
+                            </button>
                           </div>
 
                           {/* Info Section */}
                           <div className="space-y-6">
-                            {!isSuperAdmin && (
-                              <div className="p-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl text-xs font-urdu text-center">
-                                بنیادی معلومات، رجسٹریشن نمبر اور مونوگرام صرف
-                                سپر ایڈمن (مدارس مینیجر) ہی تبدیل کر سکتا ہے۔
-                              </div>
-                            )}
                             <div className="space-y-2">
                               <label className="text-[10px] text-slate-400 font-urdu block pr-2">
                                 جامعہ کا نام (اردو)
@@ -2216,8 +2204,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                     jamiaName: e.target.value,
                                   })
                                 }
-                                disabled={!isSuperAdmin}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-urdu outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
+                                className="w-full px-6 py-4 border bg-white border-slate-200 rounded-2xl font-bold font-urdu outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
                               />
                             </div>
                             <div className="space-y-2">
@@ -2233,8 +2220,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                     registrationPrefix: e.target.value,
                                   })
                                 }
-                                disabled={!isSuperAdmin}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
+                                className="w-full px-6 py-4 border bg-white border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-700"
                               />
                             </div>
                             <div className="space-y-2">
@@ -2250,8 +2236,7 @@ export default function Settings({ onBack, onSubViewChange }: SettingsProps) {
                                     contactNumber: e.target.value,
                                   })
                                 }
-                                disabled={!isSuperAdmin}
-                                className="w-full px-6 py-4 border bg-slate-50 border-slate-100 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-slate-700 disabled:opacity-75 disabled:cursor-not-allowed"
+                                className="w-full px-6 py-4 border bg-white border-slate-200 rounded-2xl font-bold font-mono outline-none focus:ring-2 focus:ring-blue-500 transition-all text-center text-slate-700"
                               />
                             </div>
                           </div>

@@ -45,10 +45,23 @@ const FinanceManagement: React.FC<FinanceManagementProps> = ({ onBack }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [printingReceipt, setPrintingReceipt] = useState<Transaction | null>(null);
 
-  const [systemSettings] = useState(() => {
+  const [systemSettings, setSystemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
     return saved ? JSON.parse(saved) : { jamiaName: 'جامعہ عربیہ سراج العلوم', monogram: '' };
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem('system_settings');
+        if (saved) {
+          setSystemSettings(JSON.parse(saved));
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('storage_updated', handleUpdate);
+    return () => window.removeEventListener('storage_updated', handleUpdate);
+  }, []);
 
   // Data Persistence
   const [transactions, setTransactions] = useState<Transaction[]>(() => {

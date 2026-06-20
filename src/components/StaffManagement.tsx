@@ -153,7 +153,7 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ onBack }) => {
 
   const districts = Array.from(new Set(staff.map(s => s.currentDistrict))).filter(d => d);
 
-  const [systemSettings] = useState(() => {
+  const [systemSettings, setSystemSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('system_settings');
       return saved ? JSON.parse(saved) : { jamiaName: 'جامعہ عربیہ سراج العلوم', monogram: '' };
@@ -161,6 +161,19 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ onBack }) => {
       return { jamiaName: 'جامعہ عربیہ سراج العلوم', monogram: '' };
     }
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem('system_settings');
+        if (saved) {
+          setSystemSettings(JSON.parse(saved));
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('storage_updated', handleUpdate);
+    return () => window.removeEventListener('storage_updated', handleUpdate);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-slate-50 font-urdu" dir="rtl">

@@ -1127,7 +1127,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
             </a>
             <button
               onClick={() => {
-                localStorage.clear();
+                localStorage.removeItem("currentUser");
+                localStorage.removeItem("currentUserRole");
+                localStorage.removeItem("isLoggedIn");
+                localStorage.removeItem("isSuperAdmin");
+                localStorage.removeItem("userStatus");
                 onLogout();
                 navigate("/login");
               }}

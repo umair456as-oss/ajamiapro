@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, customFetch } from '../config';
 import { googleSignIn } from '../lib/auth';
+import { auth, db } from '../lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { syncToServer } from '../syncService';
 import PublicResultPortal from './PublicResultPortal';
 
 
@@ -20,13 +24,26 @@ export default function AuthSystem({ onLogin }: AuthProps) {
   const [madrassaName, setMadrassaName] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
 
-  const [systemSettings] = useState(() => {
+  const [systemSettings, setSystemSettings] = useState(() => {
     const saved = localStorage.getItem('system_settings');
     return saved ? JSON.parse(saved) : {
       jamiaName: 'جامعہ عربیہ سراج العلوم جبوڑی مانسہرہ',
       monogram: ''
     };
   });
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem('system_settings');
+        if (saved) {
+          setSystemSettings(JSON.parse(saved));
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('storage_updated', handleUpdate);
+    return () => window.removeEventListener('storage_updated', handleUpdate);
+  }, []);
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +56,22 @@ export default function AuthSystem({ onLogin }: AuthProps) {
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
+
+      // Fetch latest users from Firestore to dynamically synchronize new registrations
+      try {
+        const tenantId = 'master';
+        const docRef = doc(db, 'madrassa_data', `${tenantId}_users`);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const docPayload = docSnap.data();
+          if (docPayload && Array.isArray(docPayload.value)) {
+            localStorage.setItem('users', JSON.stringify(docPayload.value));
+            window.dispatchEvent(new Event('storage_updated'));
+          }
+        }
+      } catch (firestoreErr) {
+        console.warn('Could not fetch latest users from Firestore:', firestoreErr);
+      }
 
       // Check master email 1 (Jamia Administrator)
       if (normalizedEmail === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
@@ -72,32 +105,99 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         return;
       }
 
-      // Check locally added staff/teachers created inside "Account Management"
+      // Resolve username to actual email if user inputted a short username
+      let loginEmail = normalizedEmail;
+      let registeredUsers: any[] = [];
       const localUsersStr = localStorage.getItem('users');
       if (localUsersStr) {
         try {
-          const localUsers = JSON.parse(localUsersStr);
-          const foundLocal = localUsers.find((u: any) => 
-            (u.username?.toLowerCase() === normalizedEmail || u.email?.toLowerCase() === normalizedEmail) && 
-            u.password === password
-          );
-          if (foundLocal) {
-            localStorage.setItem('currentUser', foundLocal.email || foundLocal.username);
-            localStorage.setItem('currentUserRole', foundLocal.role || 'Teacher');
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('paymentStatus', 'paid');
-            // If they are Admin from Account Management, let them access
-            if (foundLocal.role === 'Admin') {
-              localStorage.setItem('userStatus', 'accepted');
-            } else {
-              localStorage.setItem('userStatus', 'accepted'); // default to allowed inside sub views
-            }
-            onLogin();
-            navigate('/dashboard');
-            return;
+          registeredUsers = JSON.parse(localUsersStr);
+          const foundMatch = registeredUsers.find((u: any) => u.username?.toLowerCase() === normalizedEmail);
+          if (foundMatch && foundMatch.email) {
+            loginEmail = foundMatch.email.toLowerCase().trim();
           }
-        } catch (localErr) {
-          console.warn('Local authentication lookup error:', localErr);
+        } catch (e) {}
+      }
+
+      // Try Firebase Auth email/password login (for account manually created in Console)
+      let firebaseUser = null;
+      if (loginEmail.includes('@')) {
+        try {
+          const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
+          firebaseUser = userCredential.user;
+          console.log("Firebase Auth signed in successfully:", firebaseUser.email);
+        } catch (authErr: any) {
+          console.warn("Firebase Authentication failed or user is offline:", authErr.message);
+        }
+      }
+
+      if (firebaseUser) {
+        const userEmail = (firebaseUser.email || loginEmail).toLowerCase().trim();
+        let foundLocal = registeredUsers.find((u: any) => u.email?.toLowerCase() === userEmail || u.username?.toLowerCase() === userEmail);
+        
+        if (!foundLocal) {
+          // Auto-onboard dynamically inside our local database users list so Admin can setup permissions in Account Management
+          const namePrefix = userEmail.split('@')[0];
+          const newUserObj = {
+            id: Date.now(),
+            username: namePrefix,
+            email: userEmail,
+            role: 'Teacher', // Default role
+            password: '***',
+            status: 'accepted',
+            paymentStatus: 'paid',
+            madrassaName: '',
+            whatsapp: ''
+          };
+          registeredUsers.push(newUserObj);
+          localStorage.setItem('users', JSON.stringify(registeredUsers));
+          window.dispatchEvent(new Event('storage_updated'));
+          foundLocal = newUserObj;
+          
+          try {
+            await syncToServer();
+          } catch (err) {}
+        }
+
+        localStorage.setItem('currentUser', userEmail);
+        localStorage.setItem('currentUserRole', foundLocal?.role || 'Teacher');
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('paymentStatus', 'paid');
+        localStorage.setItem('userStatus', 'accepted');
+        
+        if (foundLocal?.role === 'Admin' || userEmail === 'jamiaarabiasirajululoomjabori@gmail.com' || userEmail === 'abdulrehmanhabib.com@gmail.com') {
+          localStorage.setItem('isSuperAdmin', 'true');
+        } else {
+          localStorage.removeItem('isSuperAdmin');
+        }
+
+        onLogin();
+        navigate('/dashboard');
+        return;
+      }
+
+      // Check locally added staff/teachers created inside "Account Management" (Offline Fallback / Non-Auth user)
+      if (registeredUsers.length > 0) {
+        const foundLocal = registeredUsers.find((u: any) => 
+          (u.username?.toLowerCase() === normalizedEmail || u.email?.toLowerCase() === normalizedEmail) && 
+          u.password === password
+        );
+        if (foundLocal) {
+          localStorage.setItem('currentUser', foundLocal.email || foundLocal.username);
+          localStorage.setItem('currentUserRole', foundLocal.role || 'Teacher');
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('paymentStatus', 'paid');
+          localStorage.setItem('userStatus', 'accepted');
+          
+          if (foundLocal.role === 'Admin') {
+            localStorage.setItem('isSuperAdmin', 'true');
+          } else {
+            localStorage.removeItem('isSuperAdmin');
+          }
+          
+          onLogin();
+          navigate('/dashboard');
+          return;
         }
       }
 
@@ -252,78 +352,6 @@ export default function AuthSystem({ onLogin }: AuthProps) {
               <span>امتحانی نتیجہ اور کشف الدرجات (بغیر لاگ ان)</span>
             </button>
 
-            <div className="mt-8">
-              <div className="relative flex items-center justify-center mb-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-[#E2E8F0]"></div>
-                </div>
-                <span className="relative px-4 bg-white text-[10px] font-bold text-[#64748B] tracking-widest uppercase">
-                  Or continue with
-                </span>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  type="button"
-                  onClick={async () => {
-                     setIsLoading(true);
-                     try {
-                       const result = await googleSignIn();
-                       if (result) {
-                          const emailToCheck = (result.user.email || '').toLowerCase().trim();
-                          
-                          // Check if it's one of the master emails
-                          const isMaster = emailToCheck === 'abdulrehmanhabib.com@gmail.com' || emailToCheck === 'jamiaarabiasirajululoomjabori@gmail.com';
-                          
-                          // Or check if it's a registered local staff/teacher
-                          let isRegisteredUser = false;
-                          let foundLocal: any = null;
-                          const localUsersStr = localStorage.getItem('users');
-                          if (localUsersStr) {
-                            try {
-                              const localUsers = JSON.parse(localUsersStr);
-                              foundLocal = localUsers.find((u: any) => u.email?.toLowerCase() === emailToCheck);
-                              if (foundLocal) {
-                                isRegisteredUser = true;
-                              }
-                            } catch(e){}
-                          }
-
-                          if (isMaster || isRegisteredUser) {
-                            localStorage.setItem('currentUser', emailToCheck);
-                            localStorage.setItem('isLoggedIn', 'true');
-                            localStorage.setItem('paymentStatus', 'paid');
-                            localStorage.setItem('userStatus', 'accepted');
-                            
-                            if (isMaster) {
-                               localStorage.setItem('currentUserRole', 'Admin');
-                               localStorage.setItem('isSuperAdmin', 'true');
-                               localStorage.removeItem('madrassaId');
-                               localStorage.removeItem('madrassaJamiaName');
-                               localStorage.removeItem('madrassaModules');
-                            } else {
-                               localStorage.setItem('currentUserRole', foundLocal?.role || 'Teacher');
-                            }
-                            onLogin();
-                            navigate('/dashboard');
-                          } else {
-                            setError('یہ گوگل اکاؤنٹ رجسٹرڈ نہیں ہے۔ براہ کرم رجسٹرڈ معلومات استعمال کریں۔');
-                          }
-                       }
-                     } catch (err) {
-                       console.error('Sign in error:', err);
-                       setError('گوگل سائن ان کا پاپ اپ بلاک ہو گیا ہے یا بند کر دیا گیا ہے۔ براہ کرم اپنے براؤزر میں پاپ اپس کی اجازت دیں یا نیچے دیے گئے بٹن پر کلک کر کے ایپ کو نئی ٹیب میں کھولیں۔');
-                     } finally {
-                       setIsLoading(false);
-                     }
-                  }}
-                  className="social-btn w-full flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 transition-all font-bold text-xs py-3 rounded-xl"
-                >
-                  <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="Google" />
-                  <span>Google کے ساتھ لاگ ان کریں</span>
-                </button>
-              </div>
-
               <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center justify-center font-urdu" dir="rtl">
                 <span className="text-xs text-slate-500 mb-2">مدارس رجسٹریشن یا سوالات کے لیے رابطہ کریں:</span>
                 <a 
@@ -339,7 +367,6 @@ export default function AuthSystem({ onLogin }: AuthProps) {
                   <span>رابطہ برائے رجسٹریشن (واٹس ایپ)</span>
                 </a>
               </div>
-            </div>
           </form>
         </div>
       </motion.div>

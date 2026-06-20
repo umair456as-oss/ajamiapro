@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AuthSystem from './components/AuthSystem';
 import Dashboard from './components/Dashboard';
 import PublicAdmissionForm from './components/PublicAdmissionForm';
+import { startRealTimeSync, stopRealTimeSync } from './syncService';
 
 function ProtectedRoute({ children, isLoggedIn }: { children: React.ReactNode, isLoggedIn: boolean }) {
   if (!isLoggedIn) {
@@ -30,6 +31,15 @@ export default function App() {
     localStorage.removeItem('isLoggedIn');
     setIsLoggedIn(false);
   };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      const unsubscribe = startRealTimeSync();
+      return () => {
+        stopRealTimeSync();
+      };
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
     // Preserve the old logic for ?form=admission for backward compatibility
