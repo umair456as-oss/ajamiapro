@@ -43,24 +43,44 @@ export default function AccountManagement() {
   
   const defaultPermissions = {
     'Admin': {
-      dashboard: true, students: true, attendance: true, academics: true,
-      paper_uploader: true, paper_checker: true, paper_reports: true,
-      settings: true, finance: true, staff: true, exams: true
+      dashboard: true, students: true, all_students: true, document_capture: true,
+      attendance: true, lessons: true, manual: true, exam_attendance_sheet: true,
+      academics: true, exams: true, paper_maker: true, paper_uploader: true,
+      paper_checker: true, paper_reports: true, fees: true, staff: true,
+      payroll: true, visitors: true, notifications: true, camera: true,
+      settings: true, public_result: true, finance: true, library: true,
+      fatwa: true, posts: true, reports: true, recycle_bin: true,
+      admissions_view: true, super_admin_panel: true, voice_logs: true
     },
     'Teacher': {
-      dashboard: true, students: true, attendance: true, academics: false,
-      paper_uploader: true, paper_checker: true, paper_reports: true,
-      settings: false, finance: false, staff: false, exams: true
+      dashboard: true, students: false, all_students: true, document_capture: false,
+      attendance: true, lessons: true, manual: true, exam_attendance_sheet: false,
+      academics: false, exams: true, paper_maker: false, paper_uploader: true,
+      paper_checker: true, paper_reports: true, fees: false, staff: false,
+      payroll: false, visitors: false, notifications: true, camera: true,
+      settings: false, public_result: false, finance: false, library: true,
+      fatwa: false, posts: false, reports: false, recycle_bin: false,
+      admissions_view: false, super_admin_panel: false, voice_logs: false
     },
     'Staff': {
-      dashboard: true, students: true, attendance: true, academics: false,
-      paper_uploader: false, paper_checker: false, paper_reports: false,
-      settings: false, finance: true, staff: false, exams: false
+      dashboard: true, students: true, all_students: true, document_capture: true,
+      attendance: true, lessons: false, manual: true, exam_attendance_sheet: true,
+      academics: false, exams: false, paper_maker: false, paper_uploader: false,
+      paper_checker: false, paper_reports: false, fees: true, staff: false,
+      payroll: false, visitors: true, notifications: false, camera: true,
+      settings: false, finance: true, library: true,
+      fatwa: false, posts: false, reports: false, recycle_bin: false,
+      admissions_view: true, super_admin_panel: false, voice_logs: false
     },
     'Parent': {
-      dashboard: true, students: false, attendance: true, academics: false,
-      paper_uploader: false, paper_checker: false, paper_reports: true,
-      settings: false, finance: false, staff: false, exams: true
+      dashboard: true, students: false, all_students: false, document_capture: false,
+      attendance: false, lessons: false, manual: false, exam_attendance_sheet: false,
+      academics: false, exams: true, paper_maker: false, paper_uploader: false,
+      paper_checker: false, paper_reports: true, fees: false, staff: false,
+      payroll: false, visitors: false, notifications: false, camera: false,
+      settings: false, public_result: true, finance: false, library: false,
+      fatwa: false, posts: false, reports: false, recycle_bin: false,
+      admissions_view: false, super_admin_panel: false, voice_logs: false
     }
   };
 
@@ -83,17 +103,37 @@ export default function AccountManagement() {
   });
 
   const modules = [
-    { id: 'dashboard', label: 'ڈیش بورڈ' },
-    { id: 'students', label: 'طالب علم' },
-    { id: 'attendance', label: 'حاضری' },
-    { id: 'academics', label: 'تعلیمی امور' },
-    { id: 'exams', label: 'نتائج' },
-    { id: 'paper_uploader', label: 'پیپر اپلوڈر' },
-    { id: 'paper_checker', label: 'پیپر چیکر' },
-    { id: 'paper_reports', label: 'پیپر رپورٹس' },
-    { id: 'finance', label: 'آمد و خرچ' },
-    { id: 'staff', label: 'عملہ و وظائف' },
-    { id: 'settings', label: 'ترتیبات' },
+    { id: 'dashboard', label: 'ڈیش بورڈ (Dashboard)' },
+    { id: 'students', label: 'طالب علم رجسٹریشن (Student Reg)' },
+    { id: 'all_students', label: 'تمام طلبہ لسٹ (All Students List)' },
+    { id: 'document_capture', label: 'دستاویز کیپچر (Document Capture)' },
+    { id: 'attendance', label: 'سیکیورٹی حاضری (Security Attendance)' },
+    { id: 'lessons', label: 'روز کا سبق (Daily Lessons)' },
+    { id: 'manual', label: 'دستی حاضری (Manual Attendance)' },
+    { id: 'exam_attendance_sheet', label: 'امتحانی حاضری شیٹ (Exam Attendance Sheet)' },
+    { id: 'academics', label: 'تعلیمی امور (Academics Management)' },
+    { id: 'exams', label: 'امتحان سازی و نتائج (Exams & Results)' },
+    { id: 'paper_maker', label: 'پیپر میکر (Paper Maker)' },
+    { id: 'paper_uploader', label: 'پیپر اپلوڈر (Paper Uploader)' },
+    { id: 'paper_checker', label: 'پیپر چیکر (Paper Checker)' },
+    { id: 'paper_reports', label: 'پیپر رپورٹس (Paper Reports)' },
+    { id: 'fees', label: 'طلبہ فیس کا انتظام (Fees Management)' },
+    { id: 'staff', label: 'عملہ و اساتذہ (Staff Roles)' },
+    { id: 'payroll', label: 'تنخواہ کا انتظام (Payroll)' },
+    { id: 'visitors', label: 'ملاقاتی رجسٹر (Visitors)' },
+    { id: 'notifications', label: 'اعلانات و پیغامات (Notifications)' },
+    { id: 'camera', label: 'کیمرہ حاضری اسکينر (QR Camera Scanner)' },
+    { id: 'settings', label: 'ترتیبات (App Settings)' },
+    { id: 'public_result', label: 'پبلک رزلٹ پورٹل (Result Portal)' },
+    { id: 'finance', label: 'آمد و خرچ اکاؤنٹنگ (Finance Ledger)' },
+    { id: 'library', label: 'لائبریری کا نظام (Library)' },
+    { id: 'fatwa', label: 'دارالافتاء و فتاویٰ (Dar-ul-Ifta)' },
+    { id: 'posts', label: 'جامعہ نیوز پوسٹس (Jamia News/Posts)' },
+    { id: 'reports', label: 'ماسٹر تعلیمی رپورٹس (Reports Center)' },
+    { id: 'recycle_bin', label: 'ریسائیکل بن (Data Trash Bin)' },
+    { id: 'admissions_view', label: 'آن لائن درخواستیں (Admissions)' },
+    { id: 'super_admin_panel', label: 'سپر ایڈمن پینل (Super Admin)' },
+    { id: 'voice_logs', label: 'وائس لاگز اور ہسٹری (Voice Speech Logs)' },
   ];
 
   const handleSave = async () => {

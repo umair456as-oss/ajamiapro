@@ -329,20 +329,47 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   const [permissions, setPermissions] = useState(() => {
     const saved = localStorage.getItem("role_permissions");
-    const defaultPerms = {
+    const defaultPerms: Record<string, any> = {
       Admin: {
-        dashboard: true,
-        students: true,
-        attendance: true,
-        academics: true,
-        paper_uploader: true,
-        paper_checker: true,
-        paper_reports: true,
-        settings: true,
-        finance: true,
-        staff: true,
-        exams: true,
+        dashboard: true, students: true, all_students: true, document_capture: true,
+        attendance: true, lessons: true, manual: true, exam_attendance_sheet: true,
+        academics: true, exams: true, paper_maker: true, paper_uploader: true,
+        paper_checker: true, paper_reports: true, fees: true, staff: true,
+        payroll: true, visitors: true, notifications: true, camera: true,
+        settings: true, public_result: true, finance: true, library: true,
+        fatwa: true, posts: true, reports: true, recycle_bin: true,
+        admissions_view: true, super_admin_panel: true, voice_logs: true
       },
+      Teacher: {
+        dashboard: true, students: false, all_students: true, document_capture: false,
+        attendance: true, lessons: true, manual: true, exam_attendance_sheet: false,
+        academics: false, exams: true, paper_maker: false, paper_uploader: true,
+        paper_checker: true, paper_reports: true, fees: false, staff: false,
+        payroll: false, visitors: false, notifications: true, camera: true,
+        settings: false, public_result: false, finance: false, library: true,
+        fatwa: false, posts: false, reports: false, recycle_bin: false,
+        admissions_view: false, super_admin_panel: false, voice_logs: false
+      },
+      Staff: {
+        dashboard: true, students: true, all_students: true, document_capture: true,
+        attendance: true, lessons: false, manual: true, exam_attendance_sheet: true,
+        academics: false, exams: false, paper_maker: false, paper_uploader: false,
+        paper_checker: false, paper_reports: false, fees: true, staff: false,
+        payroll: false, visitors: true, notifications: false, camera: true,
+        settings: false, finance: true, library: true,
+        fatwa: false, posts: false, reports: false, recycle_bin: false,
+        admissions_view: true, super_admin_panel: false, voice_logs: false
+      },
+      Parent: {
+        dashboard: true, students: false, all_students: false, document_capture: false,
+        attendance: false, lessons: false, manual: false, exam_attendance_sheet: false,
+        academics: false, exams: true, paper_maker: false, paper_uploader: false,
+        paper_checker: false, paper_reports: true, fees: false, staff: false,
+        payroll: false, visitors: false, notifications: false, camera: false,
+        settings: false, public_result: true, finance: false, library: false,
+        fatwa: false, posts: false, reports: false, recycle_bin: false,
+        admissions_view: false, super_admin_panel: false, voice_logs: false
+      }
     };
     if (!saved) return defaultPerms;
     try {
@@ -407,7 +434,11 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       } catch (e) {}
     }
 
-    if (userStatus === "pending" && !isAdmin) {
+    const isSuperAdminUser =
+      localStorage.getItem("isSuperAdmin") === "true" ||
+      ADMIN_EMAILS.includes(currentUserEmail.toLowerCase());
+
+    if (userStatus === "pending" && !isSuperAdminUser) {
       const pendingAllowed = [
         "dashboard",
         "all_students",
@@ -419,43 +450,54 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       if (!pendingAllowed.includes(modId)) return false;
     }
 
-    if (userRole === "Admin") return true;
+    if (isSuperAdminUser) return true;
 
     // Map sidebar/grid IDs to permission keys
     const permMap: Record<string, string> = {
       dashboard: "dashboard",
       students: "students",
-      all_students: "students",
-      document_capture: "students",
+      all_students: "all_students",
+      document_capture: "document_capture",
       attendance: "attendance",
       attendance_qr: "attendance",
-      manual: "attendance",
+      lessons: "lessons",
+      manual: "manual",
+      exam_attendance_sheet: "exam_attendance_sheet",
       academics: "academics",
       grade: "academics",
       results: "exams",
       results_grid: "exams",
+      exams: "exams",
+      paper_maker: "paper_maker",
       paper_uploader: "paper_uploader",
       paper_checker: "paper_checker",
       paper_reports: "paper_reports",
-      fees: "finance",
-      fees_grid: "finance",
-      finance: "finance",
-      payroll: "finance",
-      payroll_grid: "finance",
+      fees: "fees",
+      fees_grid: "fees",
       staff: "staff",
       staff_grid: "staff",
+      payroll: "payroll",
+      payroll_grid: "payroll",
+      visitors: "visitors",
+      visitors_grid: "visitors",
+      notifications: "notifications",
+      messaging: "notifications",
+      camera: "camera",
       settings: "settings",
-      reports: "dashboard",
-      documents: "dashboard",
-      messaging: "dashboard",
-      paper_maker: "exams",
-      camera: "attendance",
-      staff_attendance: "attendance",
-      visitors: "dashboard",
-      visitors_grid: "dashboard",
+      public_result: "public_result",
+      finance: "finance",
+      library: "library",
+      fatwa: "fatwa",
+      posts: "posts",
+      reports: "reports",
+      recycle_bin: "recycle_bin",
+      online_applications: "admissions_view",
+      admissions_view: "admissions_view",
+      super_admin_panel: "super_admin_panel",
+      voice_logs: "voice_logs"
     };
 
-    const key = permMap[modId] || "dashboard"; // default to dashboard if not specified
+    const key = permMap[modId] || modId;
     return permissions[userRole]?.[key] !== false;
   };
 
