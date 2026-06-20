@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Double-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Admin check - either specific email or registered as admin in the DB
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'jamiaarabiasirajululoomjabori@gmail.com' ||
+        request.auth.token.email == 'abdulrehmanhabib.com@gmail.com' ||
+        exists(/databases/$(database)/documents/institutions/master/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/institutions/master/users/$(request.auth.uid)).data.role == 'Admin'
+      );
+    }
+
+    // Institutions and their data
+    match /institutions/{madrassaId} {
+      allow read: if isSignedIn();
+      
+      match /students/{studentId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+
+      match /users/{userId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin() || (isSignedIn() && userId == request.auth.uid);
+      }
+
+      match /system_data/{key} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+    }
+  }
+}

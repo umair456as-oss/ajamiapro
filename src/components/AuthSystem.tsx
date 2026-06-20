@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
-import { syncToServer } from '../syncService';
 import PublicResultPortal from './PublicResultPortal';
 
 
@@ -54,30 +52,6 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Fetch latest users from Supabase (non-blocking)
-      if (supabase) {
-        (async () => {
-          try {
-            const tenantId = 'master';
-            const { data, error } = await supabase
-              .from('madrassa_data')
-              .select('value')
-              .eq('tenant_id', tenantId)
-              .eq('key', 'users')
-              .single();
-
-            if (data && Array.isArray(data.value)) {
-              localStorage.setItem('users', JSON.stringify(data.value));
-              window.dispatchEvent(new Event('storage_updated'));
-            } else if (error) {
-                console.warn('Could not fetch latest users from Supabase:', error);
-            }
-          } catch (supabaseErr) {
-            console.warn('Could not fetch latest users from Supabase:', supabaseErr);
-          }
-        })();
-      }
-
       // Check master email 1 (Jamia Administrator)
       if (normalizedEmail === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
         localStorage.setItem('currentUser', normalizedEmail);
@@ -111,82 +85,15 @@ export default function AuthSystem({ onLogin }: AuthProps) {
       }
 
       // Resolve username to actual email if user inputted a short username
-      let loginEmail = normalizedEmail;
       let registeredUsers: any[] = [];
       const localUsersStr = localStorage.getItem('users');
       if (localUsersStr) {
         try {
           registeredUsers = JSON.parse(localUsersStr);
-          const foundMatch = registeredUsers.find((u: any) => u.username?.toLowerCase() === normalizedEmail);
-          if (foundMatch && foundMatch.email) {
-            loginEmail = foundMatch.email.toLowerCase().trim();
-          }
         } catch (e) {}
       }
 
-      // Try Supabase Auth email/password login
-      let supabaseUser = null;
-      if (loginEmail.includes('@') && supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({ 
-              email: loginEmail, 
-              password: password 
-          });
-          if (error) throw error;
-          supabaseUser = data.user;
-          console.log("Supabase Auth signed in successfully:", supabaseUser.email);
-        } catch (authErr: any) {
-          console.warn("Supabase Authentication failed or user is offline:", authErr.message);
-        }
-      }
-
-      if (supabaseUser) {
-        const userEmail = (supabaseUser.email || loginEmail).toLowerCase().trim();
-        let foundLocal = registeredUsers.find((u: any) => u.email?.toLowerCase() === userEmail || u.username?.toLowerCase() === userEmail);
-        
-        if (!foundLocal) {
-          // Auto-onboard dynamically inside our local database users list so Admin can setup permissions in Account Management
-          const namePrefix = userEmail.split('@')[0];
-          const newUserObj = {
-            id: Date.now(),
-            username: namePrefix,
-            email: userEmail,
-            role: 'Teacher', // Default role
-            password: '***',
-            status: 'accepted',
-            paymentStatus: 'paid',
-            madrassaName: '',
-            whatsapp: ''
-          };
-          registeredUsers.push(newUserObj);
-          localStorage.setItem('users', JSON.stringify(registeredUsers));
-          window.dispatchEvent(new Event('storage_updated'));
-          foundLocal = newUserObj;
-          
-          try {
-            syncToServer().catch(err => console.warn('Background sync failed:', err));
-          } catch (err) {}
-        }
-
-        localStorage.setItem('currentUser', userEmail);
-        localStorage.setItem('currentUserRole', foundLocal?.role || 'Teacher');
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('paymentStatus', 'paid');
-        localStorage.setItem('userStatus', 'accepted');
-        
-        if (foundLocal?.role === 'Admin' || userEmail === 'jamiaarabiasirajululoomjabori@gmail.com' || userEmail === 'abdulrehmanhabib.com@gmail.com') {
-          localStorage.setItem('isSuperAdmin', 'true');
-        } else {
-          localStorage.removeItem('isSuperAdmin');
-        }
-
-        onLogin();
-        navigate('/dashboard');
-        setIsLoading(false);
-        return;
-      }
-
-      // Check locally added staff/teachers created inside "Account Management" (Offline Fallback / Non-Auth user)
+      // Check locally added staff/teachers created inside "Account Management"
       if (registeredUsers.length > 0) {
         const foundLocal = registeredUsers.find((u: any) => 
           (u.username?.toLowerCase() === normalizedEmail || u.email?.toLowerCase() === normalizedEmail) && 

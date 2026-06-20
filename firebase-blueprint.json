@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Information about a student in the jamia.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "rollNo": { "type": "string" },
+        "currentGrade": { "type": "string" },
+        "registrationDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
+    "User": {
+      "title": "User",
+      "description": "App user (staff/admin).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Teacher", "Accountant"] },
+        "username": { "type": "string" }
+      },
+      "required": ["id", "email"]
+    },
+    "GenericData": {
+      "title": "Generic Data",
+      "description": "Flexible data container for various system keys.",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "value"]
+    }
+  },
+  "firestore": {
+    "/institutions/{madrassaId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of students."
+    },
+    "/institutions/{madrassaId}/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of users."
+    },
+    "/institutions/{madrassaId}/system_data/{key}": {
+      "schema": "GenericData",
+      "description": "Generic system state and settings."
+    }
+  }
+}

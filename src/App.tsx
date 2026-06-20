@@ -25,7 +25,7 @@ export default function App() {
   const handleLogin = () => {
     localStorage.setItem('isLoggedIn', 'true');
     setIsLoggedIn(true);
-    // Initial data pull from Supabase
+    // Fetch latest data from cloud upon login
     pullGlobalData();
   };
 
@@ -36,7 +36,7 @@ export default function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      pullGlobalData();
+      pullGlobalData(); // Initial data fetch
       const unsubscribe = startRealTimeSync();
       return () => {
         stopRealTimeSync();
