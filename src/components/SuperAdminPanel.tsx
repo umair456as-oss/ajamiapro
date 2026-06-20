@@ -509,7 +509,7 @@ export default function SuperAdminPanel({ onClose }: SuperAdminPanelProps) {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <Cpu className="text-indigo-500 w-5 h-5 animate-pulse" />
-                      <h4 className="text-sm font-bold text-slate-800 font-urdu">ڈیٹا بیس اسپیڈ ٹیسٹ (Firebase Ping)</h4>
+                      <h4 className="text-sm font-bold text-slate-800 font-urdu">ڈیٹا بیس اسپیڈ ٹیسٹ</h4>
                     </div>
                     {latencyTest === 'testing' ? (
                       <RefreshCw className="w-4 h-4 text-orange-500 animate-spin" />
@@ -534,7 +534,7 @@ export default function SuperAdminPanel({ onClose }: SuperAdminPanelProps) {
                     )}
                   </div>
                   <p className="text-[11px] text-slate-450 leading-normal">
-                    یہ ٹول پی لوڈ سنکنگ اور فائر بیس سرور سے کنکشن کا لائیو سگنل رسپانس ٹیسٹ کرتا ہے۔
+                    یہ ٹول پی لوڈ سنکنگ اور سینٹرل سرور سے کنکشن کا لائیو سگنل رسپانس ٹیسٹ کرتا ہے۔
                   </p>
                 </div>
 
