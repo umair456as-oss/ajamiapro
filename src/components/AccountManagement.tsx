@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, UserCircle, Users, Check, Save, Trash2, Mic } from 'lucide-react';
 import { syncToServer } from '../syncService';
 import VoiceInput from './VoiceInput';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function AccountManagement() {
   const [activeTab, setActiveTab] = useState<'permissions' | 'maker'>('maker');
@@ -26,17 +28,20 @@ export default function AccountManagement() {
 
   // Listen for storage updates (from sync)
   useEffect(() => {
-    const handleUpdate = (e: any) => {
-      // Only update if the event was triggered by another component or sync
-      const saved = localStorage.getItem('users');
-      if (saved) {
-        try {
-          setUsers(JSON.parse(saved));
-        } catch (err) {}
+    const tenantId = localStorage.getItem('madrassaId') || 'master';
+    const docId = `${tenantId}_users`;
+    const docRef = doc(db, 'madrassa_data', docId);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.value)) {
+          setUsers(data.value);
+        }
       }
-    };
-    window.addEventListener('storage_updated', handleUpdate);
-    return () => window.removeEventListener('storage_updated', handleUpdate);
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });

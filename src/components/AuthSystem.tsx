@@ -155,7 +155,7 @@ export default function AuthSystem({ onLogin }: AuthProps) {
           foundLocal = newUserObj;
           
           try {
-            await syncToServer();
+            syncToServer().catch(err => console.warn('Background sync failed:', err));
           } catch (err) {}
         }
 
