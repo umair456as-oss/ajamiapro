@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, UserCircle, Users, Check, Save, Trash2, Mic } from 'lucide-react';
 import { syncToServer } from '../syncService';
 import VoiceInput from './VoiceInput';
-import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 export default function AccountManagement() {
   const [activeTab, setActiveTab] = useState<'permissions' | 'maker'>('maker');
@@ -28,24 +26,20 @@ export default function AccountManagement() {
 
   // Listen for storage updates (from sync)
   useEffect(() => {
-    const tenantId = localStorage.getItem('madrassaId') || 'master';
-    const docId = `${tenantId}_users`;
-    const docRef = doc(db, 'madrassa_data', docId);
-    
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      console.log('AccountManagement: Realtime update received for', docId);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        console.log('AccountManagement: Data:', data);
-        if (data && Array.isArray(data.value)) {
-          setUsers(data.value);
+    const fetchUsers = () => {
+      try {
+        const saved = localStorage.getItem('users');
+        if (saved) {
+          setUsers(JSON.parse(saved));
         }
-      } else {
-        console.log('AccountManagement: Document does not exist');
+      } catch (err) {
+        console.error('Error fetching users from localStorage:', err);
       }
-    });
-    
-    return () => unsubscribe();
+    };
+
+    fetchUsers();
+    window.addEventListener('storage_updated', fetchUsers);
+    return () => window.removeEventListener('storage_updated', fetchUsers);
   }, []);
 
   const [newUser, setNewUser] = useState({ username: '', email: '', password: '', role: 'Teacher', madrassaName: '', whatsapp: '' });
@@ -351,8 +345,8 @@ export default function AccountManagement() {
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex flex-col gap-1 text-xs text-amber-800 font-urdu leading-relaxed">
-            <span className="font-bold text-sm">💡 فائر بیس آتھنٹیکیشن (Firebase Authentication Console) مطابقت:</span>
-            <span>اگر آپ نے <a href="https://console.firebase.google.com/project/aphapk-8160f/authentication/users" target="_blank" rel="noopener noreferrer" className="underline font-bold font-sans">Firebase Console</a> پر نئے اکاؤنٹس مینوئل بنائے ہیں، تو ان کو یہاں شامل کرنے کے لیے ان کا ای میل ایڈریس، یوزر نیم اور پاس ورڈ درج کر کے اکاؤنٹ بنائیں۔ جب وہ ممبر پہلی مرتبہ لاگ ان کرے گا، ان کا اکاؤنٹ خود بخود تصدیق ہو جائے گا اور یہاں مقرر کردہ "رول" اور "اختیارات" فوری لاگو ہوں گے۔</span>
+            <span className="font-bold text-sm">💡 سپا بیس آتھنٹیکیشن (Supabase Authentication Console) مطابقت:</span>
+            <span>اگر آپ نے Supabase Console پر نئے اکاؤنٹس مینوئل بنائے ہیں، تو ان کو یہاں شامل کرنے کے لیے ان کا ای میل ایڈریس، یوزر نیم اور پاس ورڈ درج کر کے اکاؤنٹ بنائیں۔ جب وہ ممبر پہلی مرتبہ لاگ ان کرے گا، ان کا اکاؤنٹ خود بخود تصدیق ہو جائے گا اور یہاں مقرر کردہ "رول" اور "اختیارات" فوری لاگو ہوں گے۔</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-sm">

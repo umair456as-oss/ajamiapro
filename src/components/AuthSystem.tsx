@@ -1,12 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL, customFetch } from '../config';
-import { googleSignIn } from '../lib/auth';
-import { auth, db } from '../lib/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabaseClient';
 import { syncToServer } from '../syncService';
 import PublicResultPortal from './PublicResultPortal';
 
@@ -57,23 +54,29 @@ export default function AuthSystem({ onLogin }: AuthProps) {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Fetch latest users from Firestore (non-blocking)
-      (async () => {
-        try {
-          const tenantId = 'master';
-          const docRef = doc(db, 'madrassa_data', `${tenantId}_users`);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            const docPayload = docSnap.data();
-            if (docPayload && Array.isArray(docPayload.value)) {
-              localStorage.setItem('users', JSON.stringify(docPayload.value));
+      // Fetch latest users from Supabase (non-blocking)
+      if (supabase) {
+        (async () => {
+          try {
+            const tenantId = 'master';
+            const { data, error } = await supabase
+              .from('madrassa_data')
+              .select('value')
+              .eq('tenant_id', tenantId)
+              .eq('key', 'users')
+              .single();
+
+            if (data && Array.isArray(data.value)) {
+              localStorage.setItem('users', JSON.stringify(data.value));
               window.dispatchEvent(new Event('storage_updated'));
+            } else if (error) {
+                console.warn('Could not fetch latest users from Supabase:', error);
             }
+          } catch (supabaseErr) {
+            console.warn('Could not fetch latest users from Supabase:', supabaseErr);
           }
-        } catch (firestoreErr) {
-          console.warn('Could not fetch latest users from Firestore:', firestoreErr);
-        }
-      })();
+        })();
+      }
 
       // Check master email 1 (Jamia Administrator)
       if (normalizedEmail === 'jamiaarabiasirajululoomjabori@gmail.com' && password === 'jamiaarabiasirajululoomjabori') {
@@ -121,20 +124,24 @@ export default function AuthSystem({ onLogin }: AuthProps) {
         } catch (e) {}
       }
 
-      // Try Firebase Auth email/password login (for account manually created in Console)
-      let firebaseUser = null;
-      if (loginEmail.includes('@')) {
+      // Try Supabase Auth email/password login
+      let supabaseUser = null;
+      if (loginEmail.includes('@') && supabase) {
         try {
-          const userCredential = await signInWithEmailAndPassword(auth, loginEmail, password);
-          firebaseUser = userCredential.user;
-          console.log("Firebase Auth signed in successfully:", firebaseUser.email);
+          const { data, error } = await supabase.auth.signInWithPassword({ 
+              email: loginEmail, 
+              password: password 
+          });
+          if (error) throw error;
+          supabaseUser = data.user;
+          console.log("Supabase Auth signed in successfully:", supabaseUser.email);
         } catch (authErr: any) {
-          console.warn("Firebase Authentication failed or user is offline:", authErr.message);
+          console.warn("Supabase Authentication failed or user is offline:", authErr.message);
         }
       }
 
-      if (firebaseUser) {
-        const userEmail = (firebaseUser.email || loginEmail).toLowerCase().trim();
+      if (supabaseUser) {
+        const userEmail = (supabaseUser.email || loginEmail).toLowerCase().trim();
         let foundLocal = registeredUsers.find((u: any) => u.email?.toLowerCase() === userEmail || u.username?.toLowerCase() === userEmail);
         
         if (!foundLocal) {

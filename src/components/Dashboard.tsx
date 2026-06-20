@@ -85,8 +85,6 @@ import PublicResultPortal from "./PublicResultPortal";
 import {
   updateCentralKey,
 } from "../syncService";
-import { db } from "../lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
 import {
   Cloud,
   CloudOff,
@@ -280,31 +278,24 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [syncKey, setSyncKey] = useState(0); // Used to force refresh modules
 
   useEffect(() => {
-    const tenantId = localStorage.getItem('madrassaId') || 'master';
-    
-    const keysToWatch = [
-      { key: 'students', setter: setAllStudents },
-      { key: 'attendanceRecords', setter: setAttendanceRecords },
-      { key: 'saved_fees', setter: setSavedFees }
-    ];
+    const fetchDashboardData = () => {
+      try {
+        const students = localStorage.getItem('students');
+        if (students) setAllStudents(JSON.parse(students));
+        
+        const attendance = localStorage.getItem('attendanceRecords');
+        if (attendance) setAttendanceRecords(JSON.parse(attendance));
+        
+        const fees = localStorage.getItem('saved_fees');
+        if (fees) setSavedFees(JSON.parse(fees));
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      }
+    };
 
-    const unsubscribers = keysToWatch.map(({ key, setter }) => {
-      const docId = `${tenantId}_${key}`;
-      const docRef = doc(db, 'madrassa_data', docId);
-      
-      return onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data && data.value !== undefined) {
-            setter(data.value);
-            // Optional: update local storage for other components if needed
-            localStorage.setItem(key, JSON.stringify(data.value));
-          }
-        }
-      });
-    });
-
-    return () => unsubscribers.forEach(unsub => unsub());
+    fetchDashboardData();
+    window.addEventListener('storage_updated', fetchDashboardData);
+    return () => window.removeEventListener('storage_updated', fetchDashboardData);
   }, []);
 
   // Permissions logic

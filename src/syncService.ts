@@ -1,5 +1,5 @@
-import { db } from './lib/firebase';
-import { doc, setDoc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
+
+import { supabase } from './lib/supabaseClient';
 
 // Safe JSON parser helper 
 const safeParse = (key: string, defaultValue: any) => {
@@ -12,7 +12,7 @@ const safeParse = (key: string, defaultValue: any) => {
   }
 };
 
-// List of all keys we sync between localStorage and Firestore
+// List of all keys we sync between localStorage and Supabase
 const SYNC_KEYS = [
   'students',
   'staff',
@@ -60,7 +60,7 @@ const SYNC_KEYS = [
 ];
 
 /**
- * Update a specific key in the central Firestore dataset.
+ * Update a specific key in the central Supabase dataset.
  */
 export async function updateCentralKey(key: string, value: any): Promise<boolean> {
   // Update local storage first
@@ -68,88 +68,48 @@ export async function updateCentralKey(key: string, value: any): Promise<boolean
   window.dispatchEvent(new Event('storage_updated'));
 
   try {
+    if (!supabase) {
+      console.warn('Supabase not initialized. Skipping cloud update.');
+      return false;
+    }
     const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
-    const docId = `${tenantId}_${key}`;
-    await setDoc(doc(db, 'madrassa_data', docId), {
-      key,
-      tenantId,
-      value: value,
-      updatedAt: new Date().toISOString()
-    });
+    
+    // Check if entry exists for upsert
+    const { error } = await supabase
+      .from('madrassa_data')
+      .upsert({ tenant_id: tenantId, key: key, value: value, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,key' });
+
+    if (error) throw error;
     return true;
   } catch (err) {
-    console.error(`Could not update centralized key "${key}" in Firestore:`, err);
+    console.error(`Could not update centralized key "${key}" in Supabase:`, err);
     return false;
-  }
-}
-
-async function syncToFirestore(payload: Record<string, any>) {
-  try {
-    const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
-    
-    // Save each key as a separate document in madrassa_data to bypass the 1MB limit for single files
-    const writePromises = Object.keys(payload).map(async (key) => {
-      const dataToSave = payload[key];
-      if (dataToSave !== undefined && dataToSave !== null) {
-        const docId = `${tenantId}_${key}`;
-        await setDoc(doc(db, 'madrassa_data', docId), {
-          key,
-          tenantId,
-          value: dataToSave,
-          updatedAt: new Date().toISOString()
-        });
-      }
-    });
-    
-    await Promise.all(writePromises);
-    console.log('Successfully pushed dataset to Firebase Firestore!');
-  } catch (err) {
-    console.error('Error synchronizing data to Firestore:', err);
-    throw err;
   }
 }
 
 /**
- * Push all local changes to Firestore.
+ * Dummy syncToServer for backward compatibility.
+ * Sync is now handled by monkey-patching localStorage.setItem.
  */
 export async function syncToServer(): Promise<boolean> {
-  console.log('Initiating Strict Push Sync to Firestore...');
-  
-  // Construct the payload of all synchronized keys
-  const payload: Record<string, any> = {};
-  SYNC_KEYS.forEach(key => {
-    payload[key] = safeParse(key, key === 'system_settings' || key === 'website_settings' ? {} : []);
-  });
-
-  try {
-    await syncToFirestore(payload);
-    console.log('Strict Push Sync completed to Firestore successfully.');
-    return true;
-  } catch (err) {
-    console.error('Error during Push sync to Firestore:', err);
-    return false;
-  }
+  return true;
 }
 
-// Store the active unsubscribe function so we don't start duplicate listeners
-let unsubscribeRealTime: (() => void) | null = null;
-let isLocalUpdateFromFirestore = false;
-
-// Preserve the original local storage function
+// Monkey-patch localStorage.setItem globally to automatically sync all changes to Supabase
 const originalSetItem = localStorage.setItem;
+let isLocalUpdateFromSupabase = false;
 
-// Monkey-patch localStorage.setItem globally to automatically sync all changes to Firestore
 localStorage.setItem = function(key: string, value: string): void {
   // Always write locally first to keep the page snappy
   originalSetItem.call(localStorage, key, value);
 
   // If this update comes from our real-time snapshot pull, skip pushing it back!
-  if (isLocalUpdateFromFirestore) {
+  if (isLocalUpdateFromSupabase) {
     return;
   }
 
-  // If the key is in our sync keys list, send it to Firestore in the background
-  if (SYNC_KEYS.includes(key)) {
+  // If the key is in our sync keys list, send it to Supabase in the background
+  if (SYNC_KEYS.includes(key) && supabase) {
     let parsedValue = value;
     try {
       parsedValue = JSON.parse(value);
@@ -158,17 +118,16 @@ localStorage.setItem = function(key: string, value: string): void {
     }
 
     const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
-    const docId = `${tenantId}_${key}`;
 
-    setDoc(doc(db, 'madrassa_data', docId), {
-      key,
-      tenantId,
-      value: parsedValue,
-      updatedAt: new Date().toISOString()
-    }).then(() => {
-      console.log(`[Real-time Monkeypatch] Synced key "${key}" to Firestore.`);
-    }).catch((err) => {
-      console.warn(`[Real-time Monkeypatch] Could not sync key "${key}" to Firestore:`, err);
+    supabase
+      .from('madrassa_data')
+      .upsert({ tenant_id: tenantId, key: key, value: parsedValue, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id,key' })
+      .then(({ error }) => {
+        if (error) {
+           console.warn(`[Real-time Monkeypatch] Could not sync key "${key}" to Supabase:`, error);
+        } else {
+           console.log(`[Real-time Monkeypatch] Synced key "${key}" to Supabase.`);
+        }
     });
 
     // Notify other parts of the UI on this page
@@ -176,69 +135,39 @@ localStorage.setItem = function(key: string, value: string): void {
   }
 };
 
+let realtimeChannel: any = null;
+
 export function startRealTimeSync() {
-  if (unsubscribeRealTime) {
-    console.log('Real-time sync already active.');
-    return unsubscribeRealTime;
-  }
+  if (realtimeChannel || !supabase) return;
+  console.log('Starting Real-time Supabase Sync...');
 
-  console.log('Starting Real-time Firestore Sync...');
   const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
-  
-  // Create a query on 'madrassa_data' where tenantId equals the current tenantId
-  const q = query(
-    collection(db, 'madrassa_data'),
-    where('tenantId', '==', tenantId)
-  );
 
-  unsubscribeRealTime = onSnapshot(q, (snapshot) => {
-    let updatedAny = false;
-    
-    // Set the flag to true so our monkey-patch knows this write comes from Firestore and won't loop
-    isLocalUpdateFromFirestore = true;
-
-    try {
-      snapshot.docChanges().forEach((change) => {
-        // We only care about added or modified documents
-        if (change.type === 'added' || change.type === 'modified') {
-          const docData = change.doc.data();
-          const key = docData.key;
-          const value = docData.value;
-
-          if (key && SYNC_KEYS.includes(key)) {
-            const remoteValStr = JSON.stringify(value);
-            const localValStr = localStorage.getItem(key);
-
-            // Only write if the remote value differs from current local value
-            if (remoteValStr !== localValStr) {
-              originalSetItem.call(localStorage, key, remoteValStr);
-              console.log(`[Real-time Sync Info] Saved updated "${key}" from Firestore`);
-              updatedAny = true;
-            }
-          }
+  realtimeChannel = supabase
+    .channel('madrassa_data_changes')
+    .on('postgres_changes', { 
+      event: '*', 
+      schema: 'public', 
+      table: 'madrassa_data', 
+      filter: `tenant_id=eq.${tenantId}` 
+    }, (payload: any) => {
+        console.log('Change detected:', payload);
+        if (!payload.new) return;
+        const { key, value } = payload.new;
+        if (key && SYNC_KEYS.includes(key)) {
+            isLocalUpdateFromSupabase = true;
+            originalSetItem.call(localStorage, key, JSON.stringify(value));
+            isLocalUpdateFromSupabase = false;
+            window.dispatchEvent(new Event('storage_updated'));
         }
-      });
-    } finally {
-      // Reset the flag
-      isLocalUpdateFromFirestore = false;
-    }
-
-    if (updatedAny) {
-      // Dispatch event so components can automatically refresh
-      console.log('Real-time updates pulled from Firestore. Dispatching storage_updated event.');
-      window.dispatchEvent(new Event('storage_updated'));
-    }
-  }, (error) => {
-    console.error('Real-time sync snapshot error:', error);
-  });
-
-  return unsubscribeRealTime;
+    })
+    .subscribe();
 }
 
 export function stopRealTimeSync() {
-  if (unsubscribeRealTime) {
-    unsubscribeRealTime();
-    unsubscribeRealTime = null;
-    console.log('Stopped Real-time Firestore Sync.');
+  if (realtimeChannel && supabase) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+    console.log('Stopped Real-time Supabase Sync.');
   }
 }

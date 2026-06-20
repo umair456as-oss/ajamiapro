@@ -5,8 +5,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { updateCentralKey } from '../syncService';
-import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 interface FeesManagementProps {
   onBack: () => void;
@@ -80,20 +78,20 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    const tenantId = localStorage.getItem('madrassaId') || 'master';
-    const docId = `${tenantId}_students`;
-    const docRef = doc(db, 'madrassa_data', docId);
-    
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && Array.isArray(data.value)) {
-          setAllStudents(data.value);
+    const fetchStudents = () => {
+      try {
+        const saved = localStorage.getItem('students');
+        if (saved) {
+          setAllStudents(JSON.parse(saved));
         }
+      } catch (err) {
+        console.error('Error fetching students for fees:', err);
       }
-    });
+    };
 
-    return () => unsubscribe();
+    fetchStudents();
+    window.addEventListener('storage_updated', fetchStudents);
+    return () => window.removeEventListener('storage_updated', fetchStudents);
   }, []);
 
   const handleSearch = () => {

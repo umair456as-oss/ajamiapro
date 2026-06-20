@@ -10,8 +10,6 @@ import { addToRecycleBin } from './RecycleBin';
 import { syncToServer } from '../syncService';
 import * as XLSX from 'xlsx';
 import VoiceInput from './VoiceInput';
-import { db } from '../lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 interface Student {
   id: number;
@@ -60,18 +58,20 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
   const [selectedYear, setSelectedYear] = useState('');
 
   useEffect(() => {
-    const tenantId = localStorage.getItem('madrassaId') || 'master';
-    const docId = `${tenantId}_students`;
-    const docRef = doc(db, 'madrassa_data', docId);
-    
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && Array.isArray(data.value)) {
-          setStudents(data.value);
+    const fetchStudents = () => {
+      try {
+        const saved = localStorage.getItem('students');
+        if (saved) {
+          setStudents(JSON.parse(saved));
         }
+      } catch (err) {
+        console.error('Error fetching students from localStorage:', err);
       }
-    });
+    };
+
+    fetchStudents();
+    
+    window.addEventListener('storage_updated', fetchStudents);
     
     const savedGrades = JSON.parse(localStorage.getItem('grades_list') || '[]');
     const uniqueDarjas = Array.from(new Set(savedGrades.map((g: any) => g.name)));
@@ -79,7 +79,7 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
       setDarjas(uniqueDarjas as string[]);
     }
     
-    return () => unsubscribe();
+    return () => window.removeEventListener('storage_updated', fetchStudents);
   }, []);
 
   useEffect(() => {
