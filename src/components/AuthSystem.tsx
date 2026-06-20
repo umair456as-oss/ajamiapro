@@ -4,8 +4,6 @@ import { User, Lock, Mail, ArrowRight, HelpCircle, Landmark, Award } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, customFetch } from '../config';
 import { googleSignIn } from '../lib/auth';
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
 import PublicResultPortal from './PublicResultPortal';
 
 

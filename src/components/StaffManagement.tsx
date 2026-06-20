@@ -8,6 +8,7 @@ import {
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { API_BASE_URL, customFetch } from '../config';
+import * as XLSX from 'xlsx';
 import Webcam from 'react-webcam';
 import { addToRecycleBin } from './RecycleBin';
 
@@ -218,25 +219,63 @@ const StaffManagement: React.FC<StaffManagementProps> = ({ onBack }) => {
                       const file = e.target.files[0];
                       const reader = new FileReader();
                       reader.onload = async () => {
-                        const base64Data = reader.result as string;
                         try {
-                          const response = await customFetch(`${API_BASE_URL}/api/upload-excel`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ fileData: base64Data, type: 'staff' })
+                          const ab = reader.result as ArrayBuffer;
+                          const workbook = XLSX.read(ab, { type: 'array' });
+                          const sheetName = workbook.SheetNames[0];
+                          const sheetRaw = workbook.Sheets[sheetName];
+                          const parsedRows: any[] = XLSX.utils.sheet_to_json(sheetRaw);
+                          
+                          const existingStr = localStorage.getItem('staff') || '[]';
+                          const existing = JSON.parse(existingStr);
+                          const updated = [...existing];
+                          
+                          parsedRows.forEach((row: any, idxTemp: number) => {
+                            const randomSalt = Math.floor(Math.random() * 1000000);
+                            const staffId = row.id || `${Date.now()}-${idxTemp}-${randomSalt}`;
+                            
+                            const staffMember = {
+                              id: staffId,
+                              employeeId: row.employeeId || row['آئی ڈی'] || row.id || staffId,
+                              name: row.name || row['نام'] || '',
+                              fatherName: row.fatherName || row['ولدیت'] || '',
+                              designation: row.designation || row['عہدہ'] || '',
+                              phone: row.phone || row['رابطہ نمبر'] || row.phone || row['فون'] || '',
+                              basicSalary: Number(row.basicSalary || row['بنیادی تنخواہ'] || 0),
+                              joiningDate: row.joiningDate || row.startDate || new Date().toLocaleDateString(),
+                              maritalStatus: row.maritalStatus || '',
+                              cnic: row.cnic || '',
+                              dob: row.dob || '',
+                              currentAddress: row.currentAddress || '',
+                              currentDistrict: row.currentDistrict || '',
+                              permanentAddress: row.permanentAddress || '',
+                              permanentDistrict: row.permanentDistrict || '',
+                              religiousEdu: row.religiousEdu || '',
+                              worldlyEdu: row.worldlyEdu || '',
+                              additionalEdu: row.additionalEdu || '',
+                              startDate: row.startDate || row.joiningDate || new Date().toLocaleDateString()
+                            };
+                            
+                            const matchIdx = updated.findIndex(s => s.name === staffMember.name && s.fatherName === staffMember.fatherName);
+                            if (matchIdx >= 0) {
+                              updated[matchIdx] = { ...updated[matchIdx], ...staffMember };
+                            } else {
+                              updated.push(staffMember);
+                            }
                           });
-                          const result = await response.json();
-                          if (result.success) {
-                            alert(result.message);
-                            window.location.reload();
-                          } else {
-                            alert('اپلوڈ میں خرابی: ' + result.error);
-                          }
+                          
+                          localStorage.setItem('staff', JSON.stringify(updated));
+                          window.dispatchEvent(new Event('storage_updated'));
+                          const { syncToServer } = await import('../syncService');
+                          await syncToServer();
+                          alert('فائل کامیابی سے اپلوڈ اور مرج کر دی گئی ہے۔');
+                          window.location.reload();
                         } catch (err) {
-                          alert('سرور سے رابطہ کرنے میں خرابی۔');
+                          console.error(err);
+                          alert('اپلوڈ میں خرابی: امپورٹ فارمیٹ درست ہونا ضروری ہے۔');
                         }
                       };
-                      reader.readAsDataURL(file);
+                      reader.readAsArrayBuffer(file);
                     }
                   }} 
                 />

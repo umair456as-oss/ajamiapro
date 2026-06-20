@@ -96,8 +96,6 @@ import {
   CheckSquare,
   FileText as FileTextIcon,
 } from "lucide-react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../lib/firebase";
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -546,97 +544,9 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
       }
     }, 2000);
 
-    // 6. Real-time Firestore synchronization for all central data (Students, Exams, Settings)
-    const madrassaId = localStorage.getItem("madrassaId");
+    // 6. Real-time Firestore synchronization for all central data (Disabled as requested)
+    const madrassaId = null;
     let unsubscribeFirestore: (() => void) | null = null;
-
-    if (madrassaId) {
-      console.log(
-        "Registering real-time Firestore synchronization for madrassa ID:",
-        madrassaId,
-      );
-      unsubscribeFirestore = onSnapshot(
-        doc(db, "madrassas", madrassaId),
-        (docSnap) => {
-          if (docSnap.exists()) {
-            const fbData = docSnap.data();
-            if (fbData && fbData.data) {
-              let changedAny = false;
-              const payload = fbData.data;
-              const syncKeysList = [
-                "students",
-                "staff",
-                "system_settings",
-                "website_settings",
-                "website_fatawa",
-                "website_gallery",
-                "website_gallery_categories",
-                "website_home_sections",
-                "books",
-                "grades",
-                "results",
-                "saved_salaries",
-                "saved_fees",
-                "role_permissions",
-                "users",
-                "recycle_bin",
-                "books_list",
-                "book_assignments",
-                "grades_list",
-                "addresses",
-                "districts",
-                "madrasas",
-                "exams",
-                "hours",
-                "expulsions",
-                "gradeSettings",
-                "minPositionPercentage",
-                "positions",
-                "online_links",
-                "online_applications",
-                "licensed_madrasas",
-                "examRecords",
-                "all_exam_results",
-                "jamia_papers",
-                "jamia_posts",
-                "fin_transactions",
-                "fin_heads",
-                "fin_accounts",
-                "library_books",
-                "studentList",
-                "teacherAttendance",
-                "attendanceRecords",
-                "zk_attendance_data",
-              ];
-
-              // Update local storage keys if they differ
-              syncKeysList.forEach((key) => {
-                if (payload[key] !== undefined) {
-                  const serverValStr = JSON.stringify(payload[key]);
-                  const localValStr = localStorage.getItem(key);
-                  if (serverValStr !== localValStr) {
-                    localStorage.setItem(key, serverValStr);
-                    changedAny = true;
-                  }
-                }
-              });
-
-              if (changedAny) {
-                console.log(
-                  "Real-time updates synced from Firestore. Updating local state.",
-                );
-                // Instantly update the tracker variable to match new local state so we don't push it back
-                lastLocalState = JSON.stringify(localStorage);
-                window.dispatchEvent(new Event("storage_updated"));
-              }
-            }
-          }
-        },
-        (err) => {
-          console.warn("Real-time Firestore sync listener error:", err);
-        },
-      );
-    }
 
     return () => {
       window.removeEventListener("storage_updated", handleStorageUpdate);

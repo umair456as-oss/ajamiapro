@@ -1,5 +1,3 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';                
-import { db } from './lib/firebase';                
 import { API_BASE_URL, customFetch } from './config';
 
 // Safe JSON parser helper 
@@ -145,10 +143,8 @@ export async function syncFromServer(): Promise<any> {
 
 
 async function syncToFirestore(payload: Record<string, any>) {
-  const madrassaId = localStorage.getItem('madrassaId');
-  if (!madrassaId) return;
-  const docRef = doc(db, 'madrassas', madrassaId);
-  await setDoc(docRef, { data: payload, updatedAt: new Date().toISOString() }, { merge: true });
+  // Real-time remote cloud sync is fully decoupled and disabled as requested
+  return;
 }
 
 /**

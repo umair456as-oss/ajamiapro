@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Plus, Trash2, Edit2, CheckCircle2, AlertTriangle, Key, Landmark, Layers, ToggleLeft, ToggleRight, Phone, Receipt, UserCog, X, RefreshCw, HardDrive, Cpu, Lock, Unlock, Download, Upload, ShieldCheck, Database, Play } from 'lucide-react';
 import { syncToServer } from '../syncService';
-import { collection, onSnapshot, query, where, updateDoc, doc } from "firebase/firestore";
-import { db } from "../lib/firebase";
 
 // Predefined available modules in Digital Madrassa
 const ALL_MODULES = [
@@ -33,17 +31,21 @@ export default function SuperAdminPanel({ onClose }: SuperAdminPanelProps) {
 
   const [users, setUsers] = useState<any[]>([]);
 
-  // Listen for pending requests from Firestore
+  // Listen for pending requests from local storage
   useEffect(() => {
-    const q = query(collection(db, "users"), where("status", "==", "pending"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const usersData: any[] = [];
-      snapshot.forEach((doc) => {
-        usersData.push({ id: doc.id, ...doc.data() });
-      });
-      setUsers(usersData);
-    });
-    return () => unsubscribe();
+    const loadPendingUsers = () => {
+      try {
+        const localUsersStr = localStorage.getItem('users');
+        if (localUsersStr) {
+          const allUsers = JSON.parse(localUsersStr);
+          const pending = allUsers.filter((u: any) => u.status === "pending" || u.status === "Pending");
+          setUsers(pending);
+        }
+      } catch(e) {}
+    };
+    loadPendingUsers();
+    window.addEventListener('storage_updated', loadPendingUsers);
+    return () => window.removeEventListener('storage_updated', loadPendingUsers);
   }, []);
 
   const [form, setForm] = useState({
@@ -721,8 +723,17 @@ export default function SuperAdminPanel({ onClose }: SuperAdminPanelProps) {
                         </div>
                         <button 
                           onClick={async () => {
-                            // Approve logic: update user in Firestore
-                            await updateDoc(doc(db, "users", u.id), { status: 'accepted' });
+                            // Approve logic: update user locally
+                            try {
+                              const localUsersStr = localStorage.getItem('users') || '[]';
+                              const localUsers = JSON.parse(localUsersStr);
+                              const uIdx = localUsers.findIndex((usr: any) => usr.id === u.id || usr.email === u.email);
+                              if (uIdx >= 0) {
+                                localUsers[uIdx].status = 'accepted';
+                                localStorage.setItem('users', JSON.stringify(localUsers));
+                                window.dispatchEvent(new Event('storage_updated'));
+                              }
+                            } catch(e) {}
                             
                             const newMadrassa = {                
                               id: 'madrassa-' + Date.now(),                

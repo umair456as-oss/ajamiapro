@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Landmark, Search, Award, FileText, Printer, X, Download, AlertCircle, BookOpen, CheckCircle, School, HelpCircle, Users } from 'lucide-react';
 
 interface PublicResultPortalProps {
@@ -80,22 +78,29 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
     monogram: ''
   });
 
-  // Fetch licensed madrasas on mount
+  // Fetch licensed madrasas on mount (Local)
   useEffect(() => {
     async function fetchMadrasas() {
       setLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, 'licensed_madrasas'));
-        const list: any[] = [];
-        querySnapshot.forEach((docSnap) => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
+        const localMadrasasStr = localStorage.getItem('licensed_madrasas');
+        let list: any[] = [];
+        if (localMadrasasStr) {
+          try {
+            list = JSON.parse(localMadrasasStr);
+          } catch(e) {}
+        }
+        if (!list || list.length === 0) {
+          const sysSaved = localStorage.getItem('system_settings');
+          const sysName = sysSaved ? JSON.parse(sysSaved).jamiaName : 'جامعہ عربیہ سراج العلوم جبوڑی';
+          list = [{ id: 'default_jamia', name: sysName }];
+        }
         setMadrasas(list);
         if (list.length > 0) {
           setSelectedMadrassaId(list[0].id);
         }
       } catch (err) {
-        console.warn('Could not fetch madrasas list from Firebase:', err);
+        console.warn('Could not load madrasas from localStorage:', err);
       } finally {
         setLoading(false);
       }
@@ -167,8 +172,31 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
 
       const fetchPromises = targets.map(async (id) => {
         try {
-          const snap = await getDoc(doc(db, 'madrassas', id));
-          return snap.exists() ? { id, ...snap.data() } : null;
+          const localData: Record<string, any> = {};
+          const syncKeysList = [
+            "students", "staff", "system_settings", "website_settings", "website_fatawa",
+            "website_gallery", "website_gallery_categories", "website_home_sections",
+            "books", "grades", "results", "saved_salaries", "saved_fees", "role_permissions",
+            "users", "recycle_bin", "books_list", "book_assignments", "grades_list",
+            "addresses", "districts", "madrasas", "exams", "hours", "expulsions",
+            "gradeSettings", "minPositionPercentage", "positions", "online_links",
+            "online_applications", "licensed_madrasas", "examRecords", "all_exam_results",
+            "jamia_papers", "jamia_posts", "fin_transactions", "fin_heads", "fin_accounts",
+            "library_books", "studentList", "teacherAttendance", "attendanceRecords",
+            "zk_attendance_data"
+          ];
+          
+          syncKeysList.forEach((key) => {
+            const val = localStorage.getItem(key);
+            if (val) {
+              try {
+                localData[key] = JSON.parse(val);
+              } catch (e) {
+                localData[key] = val;
+              }
+            }
+          });
+          return { id, data: localData };
         } catch (e) {
           return null;
         }
@@ -359,16 +387,32 @@ export default function PublicResultPortal({ onClose }: PublicResultPortalProps)
     }
 
     try {
-      const docRef = doc(db, 'madrassas', selectedMadrassaId);
-      const docSnap = await getDoc(docRef);
+      const localData: Record<string, any> = {};
+      const syncKeysList = [
+        "students", "staff", "system_settings", "website_settings", "website_fatawa",
+        "website_gallery", "website_gallery_categories", "website_home_sections",
+        "books", "grades", "results", "saved_salaries", "saved_fees", "role_permissions",
+        "users", "recycle_bin", "books_list", "book_assignments", "grades_list",
+        "addresses", "districts", "madrasas", "exams", "hours", "expulsions",
+        "gradeSettings", "minPositionPercentage", "positions", "online_links",
+        "online_applications", "licensed_madrasas", "examRecords", "all_exam_results",
+        "jamia_papers", "jamia_posts", "fin_transactions", "fin_heads", "fin_accounts",
+        "library_books", "studentList", "teacherAttendance", "attendanceRecords",
+        "zk_attendance_data"
+      ];
+      
+      syncKeysList.forEach((key) => {
+        const val = localStorage.getItem(key);
+        if (val) {
+          try {
+            localData[key] = JSON.parse(val);
+          } catch (e) {
+            localData[key] = val;
+          }
+        }
+      });
 
-      if (!docSnap.exists()) {
-        setErrorMsg('منتخب کردہ ملحقہ مدرسہ کا تعلیمی ریکارڈ ڈیٹا بیس پر آن لائن نہیں ملا۔');
-        setMadrassaResultsSearch(false);
-        return;
-      }
-
-      const madrassaData = docSnap.data()?.data || {};
+      const madrassaData = localData;
       const allExams = madrassaData.all_exam_results || [];
       const classQuery = selectedClass.replace(/درجہ/g, '').trim().split(' ')[0];
 

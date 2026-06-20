@@ -4,9 +4,6 @@ import {
   Trash2, Plus, AlertCircle, ArrowLeft, ArrowRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
-
 const PublicAdmissionForm: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'basic' | 'guardians' | 'schools'>('basic');
   const [token, setToken] = useState<string | null>(null);
@@ -103,22 +100,26 @@ const PublicAdmissionForm: React.FC = () => {
       }
     };
 
-    // Save to Firestore
-    addDoc(collection(db, "admissions"), application)
-      .then((docRef) => {
-        // Trigger email notification
-        fetch('/api/trigger-admission-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ admissionData: application })
-        }).catch(err => console.error('Error triggering email:', err));
+    // Save to local storage (Online Applications) rather than Firebase Firestore
+    try {
+      const savedAppsStr = localStorage.getItem("online_applications") || "[]";
+      const savedApps = JSON.parse(savedAppsStr);
+      savedApps.push(application);
+      localStorage.setItem("online_applications", JSON.stringify(savedApps));
+      window.dispatchEvent(new Event('storage_updated'));
 
-        setSubmitted(true);
-      })
-      .catch((error) => {
-        console.error("Error adding admission: ", error);
-        alert('درخواست جمع کروانے میں غلطی ہوئی۔');
-      });
+      // Cleanly trigger email notification via backend
+      fetch('/api/trigger-admission-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admissionData: application })
+      }).catch(err => console.error('Error triggering email:', err));
+
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Error saving admission: ", error);
+      alert('درخواست جمع کروانے میں غلطی ہوئی۔');
+    }
   };
 
   if (isValid === null) return <div className="min-h-screen flex items-center justify-center bg-slate-50 font-urdu">تصدیق ہو رہی ہے...</div>;

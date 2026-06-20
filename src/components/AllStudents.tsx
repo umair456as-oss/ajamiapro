@@ -9,6 +9,7 @@ import { exportToExcel, importFromExcel } from '../excelUtils';
 import { addToRecycleBin } from './RecycleBin';
 import { syncToServer } from '../syncService';
 import { API_BASE_URL, customFetch } from '../config';
+import * as XLSX from 'xlsx';
 import VoiceInput from './VoiceInput';
 
 interface Student {
@@ -233,25 +234,69 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
                   const file = e.target.files[0];
                   const reader = new FileReader();
                   reader.onload = async () => {
-                    const base64Data = reader.result as string;
                     try {
-                      const response = await customFetch(`${API_BASE_URL}/api/upload-excel`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ fileData: base64Data, type: 'student' })
+                      const ab = reader.result as ArrayBuffer;
+                      const workbook = XLSX.read(ab, { type: 'array' });
+                      const sheetName = workbook.SheetNames[0];
+                      const sheetRaw = workbook.Sheets[sheetName];
+                      const parsedRows: any[] = XLSX.utils.sheet_to_json(sheetRaw);
+                      
+                      const existingStr = localStorage.getItem('students') || '[]';
+                      const existing = JSON.parse(existingStr);
+                      const updated = [...existing];
+                      
+                      parsedRows.forEach((row: any, idxTemp: number) => {
+                        const randomSalt = Math.floor(Math.random() * 1000000);
+                        const stId = row.id || `${Date.now()}-${idxTemp}-${randomSalt}`;
+                        
+                        let fileRegNo = row.regNo || row['رجسٹریشن نمبر'] || row['رجسٹریشن'] || row.id || '';
+                        const isGenerated = !fileRegNo;
+                        if (!fileRegNo) {
+                          fileRegNo = `REG-${stId}`;
+                        }
+
+                        const student = {
+                          id: stId,
+                          name: row.name || row['نام'] || '',
+                          fatherName: row.fatherName || row['ولدیت'] || '',
+                          regNo: String(fileRegNo),
+                          rollNo: String(row.rollNo || row['رول نمبر'] || ''),
+                          class: row.class || row.grade || row['درجہ'] || row['کلاس'] || '',
+                          grade: row.grade || row.class || row['درجہ'] || row['کلاس'] || '',
+                          fatherPhone: row.fatherPhone || row['رابطہ نمبر'] || row.phone || row['فون'] || row.mobile || row['موبائل'] || '',
+                          phone: row.phone || row['فون'] || row.fatherPhone || row['رابطہ نمبر'] || row.mobile || row['موبائل'] || '',
+                          dob: row.dob || row['تاریخ پیدائش'] || '',
+                          address: row.address || row.currentAddress || row['موجودہ پتہ'] || row['پتہ'] || '',
+                          currentAddress: row.currentAddress || row.address || row['موجودہ پتہ'] || row['پتہ'] || '',
+                          currentDistrict: row.currentDistrict || row.district || row['موجودہ ضلع'] || row['ضلع'] || '',
+                          permanentAddress: row.permanentAddress || row['مستقل پتہ'] || '',
+                          permanentDistrict: row.permanentDistrict || row['مستقل ضلع'] || '',
+                          cnic: row.cnic || String(row['شناختی کارڈ'] || row.idCard || row['شناختی کارڈ نمبر'] || ''),
+                          gender: row.gender || row['جنس'] || '',
+                          section: row.section || row['سیکشن'] || '',
+                          madrasaDetails: row.madrasaDetails || row['سابقہ مدرسہ'] || '',
+                          admissionDate: row.admissionDate || row['تاریخ داخلہ'] || new Date().toLocaleDateString()
+                        };
+                        
+                        const matchIdx = !isGenerated ? updated.findIndex(s => String(s.regNo) === String(student.regNo)) : -1;
+                        if (matchIdx >= 0) {
+                          updated[matchIdx] = { ...updated[matchIdx], ...student };
+                        } else {
+                          updated.push(student);
+                        }
                       });
-                      const result = await response.json();
-                      if (result.success) {
-                        alert(result.message);
-                        window.location.reload();
-                      } else {
-                        alert('اپلوڈ میں خرابی: ' + result.error);
-                      }
+                      
+                      localStorage.setItem('students', JSON.stringify(updated));
+                      window.dispatchEvent(new Event('storage_updated'));
+                      await syncToServer();
+                      alert('فائل کامیابی سے اپلوڈ اور مرج کر دی گئی ہے۔');
+                      window.location.reload();
                     } catch (err) {
-                      alert('سرور سے رابطہ کرنے میں خرابی۔');
+                      console.error(err);
+                      alert('امپورٹ کرنے میں خرابی پیش آگئی۔ فائل فارمیٹ درست ہونا ضروری ہے۔');
                     }
                   };
-                  reader.readAsDataURL(file);
+                  reader.readAsArrayBuffer(file);
                 }
               }} 
             />
