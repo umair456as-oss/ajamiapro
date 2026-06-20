@@ -67,11 +67,12 @@ export async function updateCentralKey(key: string, value: any): Promise<boolean
   localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
   window.dispatchEvent(new Event('storage_updated'));
 
+  if (!supabase) {
+    console.log('Supabase not initialized. Saved to local storage only.');
+    return true; // Return true as local save succeeded
+  }
+
   try {
-    if (!supabase) {
-      console.warn('Supabase not initialized. Skipping cloud update.');
-      return false;
-    }
     const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
     
     // Check if entry exists for upsert
@@ -83,7 +84,37 @@ export async function updateCentralKey(key: string, value: any): Promise<boolean
     return true;
   } catch (err) {
     console.error(`Could not update centralized key "${key}" in Supabase:`, err);
-    return false;
+    return true; // Still return true as local storage was updated
+  }
+}
+
+/**
+ * Pull all data for the current tenant from Supabase.
+ */
+export async function pullGlobalData(): Promise<void> {
+  if (!supabase) return;
+
+  try {
+    const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
+    const { data, error } = await supabase
+      .from('madrassa_data')
+      .select('key, value')
+      .eq('tenant_id', tenantId);
+
+    if (error) throw error;
+    if (data) {
+      isLocalUpdateFromSupabase = true;
+      data.forEach((row: any) => {
+        if (SYNC_KEYS.includes(row.key)) {
+          localStorage.setItem(row.key, JSON.stringify(row.value));
+        }
+      });
+      isLocalUpdateFromSupabase = false;
+      window.dispatchEvent(new Event('storage_updated'));
+      console.log('Successfully pulled global data from Supabase.');
+    }
+  } catch (err) {
+    console.error('Failed to pull global data from Supabase:', err);
   }
 }
 

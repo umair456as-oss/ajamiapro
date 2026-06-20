@@ -8,7 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AuthSystem from './components/AuthSystem';
 import Dashboard from './components/Dashboard';
 import PublicAdmissionForm from './components/PublicAdmissionForm';
-import { startRealTimeSync, stopRealTimeSync } from './syncService';
+import { startRealTimeSync, stopRealTimeSync, pullGlobalData } from './syncService';
 
 function ProtectedRoute({ children, isLoggedIn }: { children: React.ReactNode, isLoggedIn: boolean }) {
   if (!isLoggedIn) {
@@ -25,6 +25,8 @@ export default function App() {
   const handleLogin = () => {
     localStorage.setItem('isLoggedIn', 'true');
     setIsLoggedIn(true);
+    // Initial data pull from Supabase
+    pullGlobalData();
   };
 
   const handleLogout = () => {
@@ -34,6 +36,7 @@ export default function App() {
 
   useEffect(() => {
     if (isLoggedIn) {
+      pullGlobalData();
       const unsubscribe = startRealTimeSync();
       return () => {
         stopRealTimeSync();
