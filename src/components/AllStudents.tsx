@@ -8,9 +8,10 @@ import StudentManagement from './StudentManagement';
 import { exportToExcel, importFromExcel } from '../excelUtils';
 import { addToRecycleBin } from './RecycleBin';
 import { syncToServer } from '../syncService';
-import { API_BASE_URL, customFetch } from '../config';
 import * as XLSX from 'xlsx';
 import VoiceInput from './VoiceInput';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface Student {
   id: number;
@@ -59,17 +60,26 @@ export default function AllStudents({ onBack }: AllStudentsProps) {
   const [selectedYear, setSelectedYear] = useState('');
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('students') || '[]');
-    setStudents(saved);
+    const tenantId = localStorage.getItem('madrassaId') || 'master';
+    const docId = `${tenantId}_students`;
+    const docRef = doc(db, 'madrassa_data', docId);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.value)) {
+          setStudents(data.value);
+        }
+      }
+    });
     
     const savedGrades = JSON.parse(localStorage.getItem('grades_list') || '[]');
     const uniqueDarjas = Array.from(new Set(savedGrades.map((g: any) => g.name)));
     if (uniqueDarjas.length > 0) {
       setDarjas(uniqueDarjas as string[]);
-    } else {
-      const gradesFromStudents = Array.from(new Set(saved.map((s: any) => s.grade).filter(Boolean)));
-      setDarjas(gradesFromStudents as string[]);
     }
+    
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

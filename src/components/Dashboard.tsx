@@ -85,9 +85,9 @@ import PublicResultPortal from "./PublicResultPortal";
 import {
   fetchCentralData,
   updateCentralKey,
-  syncFromServer,
-  syncToServer,
 } from "../syncService";
+import { db } from "../lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import {
   Cloud,
   CloudOff,
@@ -281,34 +281,32 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [syncKey, setSyncKey] = useState(0); // Used to force refresh modules
 
   useEffect(() => {
-    const loadAllStatsData = () => {
-      try {
-        const savedSt = localStorage.getItem("students");
-        if (savedSt) {
-          setAllStudents(JSON.parse(savedSt));
-        }
+    const tenantId = localStorage.getItem('madrassaId') || 'master';
+    
+    const keysToWatch = [
+      { key: 'students', setter: setAllStudents },
+      { key: 'attendanceRecords', setter: setAttendanceRecords },
+      { key: 'saved_fees', setter: setSavedFees }
+    ];
 
-        const savedAtt = localStorage.getItem("attendanceRecords");
-        if (savedAtt) {
-          setAttendanceRecords(JSON.parse(savedAtt));
-        } else {
-          setAttendanceRecords([]);
+    const unsubscribers = keysToWatch.map(({ key, setter }) => {
+      const docId = `${tenantId}_${key}`;
+      const docRef = doc(db, 'madrassa_data', docId);
+      
+      return onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && data.value !== undefined) {
+            setter(data.value);
+            // Optional: update local storage for other components if needed
+            localStorage.setItem(key, JSON.stringify(data.value));
+          }
         }
+      });
+    });
 
-        const savedF = localStorage.getItem("saved_fees");
-        if (savedF) {
-          setSavedFees(JSON.parse(savedF));
-        } else {
-          setSavedFees([]);
-        }
-      } catch (e) {
-        console.error("Error loading dashboard stats", e);
-      }
-    };
-    loadAllStatsData();
-    window.addEventListener("storage_updated", loadAllStatsData);
-    return () => window.removeEventListener("storage_updated", loadAllStatsData);
-  }, [syncKey]);
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, []);
 
   // Permissions logic
   const [userRole, setUserRole] = useState(
@@ -501,34 +499,8 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     return permissions[userRole]?.[key] !== false;
   };
 
-  // Robust Sync Logic
+  // Sync Logic
   useEffect(() => {
-    let lastLocalState = JSON.stringify(localStorage);
-
-    const performSync = async (direction: "push" | "pull" | "both") => {
-      if (isSyncing) return;
-      setIsSyncing(true);
-
-      try {
-        if (direction === "push" || direction === "both") {
-          await syncToServer();
-          lastLocalState = JSON.stringify(localStorage);
-        }
-        if (direction === "pull" || direction === "both") {
-          await syncFromServer();
-          lastLocalState = JSON.stringify(localStorage);
-        }
-        setLastSync(new Date());
-      } catch (err) {
-        console.error("Sync error:", err);
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-
-    // 1. Initial sync on mount (pull latest)
-    performSync("pull");
-
     // 2. Listen for background updates to trigger module refreshes
     const handleStorageUpdate = () => {
       const saved = localStorage.getItem("system_settings");
@@ -559,66 +531,15 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
     };
     window.addEventListener("storage_updated", handleStorageUpdate);
 
-    // 3. Sync on Focus (Guaranteed Auto-Fetch when switching back to app)
-    const handleFocus = () => {
-      console.log("Window focused, pulling latest data from PC...");
-      syncFromServer();
-    };
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") syncFromServer();
-    });
-
-    // 4. Periodic Pull (every 10 minutes for high-capacity sync)
-    const pullInterval = setInterval(() => syncFromServer(), 600000);
-
-    // 5. Smart Push (detect local changes every 2 seconds)
-    const pushInterval = setInterval(async () => {
-      const currentState = JSON.stringify(localStorage);
-      if (currentState !== lastLocalState) {
-        console.log("Local changes detected, initiating Strict Push...");
-        const success = await syncToServer();
-        if (success) {
-          console.log("Push successful, pulling fresh signal...");
-          await syncFromServer(); // STRICT RULE: Refresh after save
-        }
-        lastLocalState = JSON.stringify(localStorage);
-      }
-    }, 2000);
-
-    // 6. Real-time Firestore synchronization for all central data (Disabled as requested)
-    const madrassaId = null;
-    let unsubscribeFirestore: (() => void) | null = null;
-
     return () => {
       window.removeEventListener("storage_updated", handleStorageUpdate);
-      window.removeEventListener("focus", handleFocus);
-      clearInterval(pullInterval);
-      clearInterval(pushInterval);
-      if (unsubscribeFirestore) {
-        unsubscribeFirestore();
-      }
     };
   }, []);
-
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    await syncToServer();
-    await syncFromServer();
-
-    // Refresh settings after sync
-    const saved = localStorage.getItem("system_settings");
-    if (saved) setSystemSettings(JSON.parse(saved));
-
-    setLastSync(new Date());
-    setIsSyncing(false);
-  };
 
   const saveSettings = async (newSettings: any) => {
     setSystemSettings(newSettings);
     localStorage.setItem("system_settings", JSON.stringify(newSettings));
     await updateCentralKey("system_settings", newSettings);
-    await syncToServer(); // Push all changes
   };
 
   const sidebarItems = [
@@ -1435,22 +1356,6 @@ export default function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <header className="h-20 bg-white flex items-center justify-between px-8 border-b border-slate-100 shadow-sm">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3">
-                      <button
-                        onClick={handleManualSync}
-                        disabled={isSyncing}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          isSyncing
-                            ? "bg-blue-600 text-white animate-pulse"
-                            : "bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100"
-                        }`}
-                      >
-                        <RefreshCw
-                          className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
-                        />
-                        <span className="font-urdu">
-                          {isSyncing ? "سنک ہو رہا ہے..." : "ڈیٹا سنک کریں"}
-                        </span>
-                      </button>
 
                       <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
                         <Bell className="w-5 h-5" />

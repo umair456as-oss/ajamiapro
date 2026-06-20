@@ -8,7 +8,7 @@ import {
   RefreshCw, Check, Download, Scan, Sliders, RotateCw
 } from 'lucide-react';
 import { exportToExcel, importFromExcel } from '../excelUtils';
-import { API_BASE_URL, customFetch } from '../config';
+import { updateCentralKey } from '../syncService';
 import VoiceInput from './VoiceInput';
 
 interface StudentManagementProps {
@@ -313,46 +313,37 @@ export default function StudentManagement({ onBack, editingStudent }: StudentMan
   };
 
   const handleSave = async () => {
-    // Show saving status
     console.log('Initiating Secure Save for:', formData.name);
     
     try {
-      const response = await customFetch(`${API_BASE_URL}/api/add-student`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        console.log('Server Save Successful:', result);
-        
-        // Update local state with the actual DB ID if it's a new student
-        const studentWithId = { ...formData, id: result.id || formData.id };
-        
-        // Update localStorage to keep it in sync until the next pull
-        const existing = JSON.parse(localStorage.getItem('students') || '[]');
-        let updated;
-        if (formData.id && !String(formData.id).startsWith('temp-')) {
-          updated = existing.map((s: any) => s.id === formData.id ? studentWithId : s);
-        } else {
-          updated = [...existing, studentWithId];
-        }
-        localStorage.setItem('students', JSON.stringify(updated));
-
-        setLastSavedStudent(studentWithId);
+      const existing = JSON.parse(localStorage.getItem('students') || '[]');
+      const isEditing = formData.id && !String(formData.id).startsWith('temp-');
+      const studentToSave = {
+        ...formData,
+        id: isEditing ? formData.id : Date.now()
+      };
+      
+      let updated;
+      if (isEditing) {
+        updated = existing.map((s: any) => s.id === formData.id ? studentToSave : s);
+      } else {
+        updated = [...existing, studentToSave];
+      }
+      
+      // Use syncService to update Firestore and LocalStorage
+      const success = await updateCentralKey('students', updated);
+      
+      if (success) {
+        console.log('Firestore Save Successful');
+        setLastSavedStudent(studentToSave);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
-        
-        // Trigger a global sync pull to be 100% sure
-        window.dispatchEvent(new Event('storage_updated'));
       } else {
-        alert(result.error || 'ڈیٹا محفوظ کرنے میں کوئی خرابی پیش آگئی۔');
+        alert('ڈیٹا محفوظ کرنے میں کوئی خرابی پیش آگئی۔');
       }
     } catch (err) {
-      console.error('Network Error during save:', err);
-      alert('سرور سے رابطہ نہیں ہو سکا۔ براہ کرم چیک کریں کہ سرور چل رہا ہے۔');
+      console.error('Error during save:', err);
+      alert('سرور سے رابطہ نہیں ہو سکا۔');
     }
   };
 

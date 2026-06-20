@@ -4,7 +4,9 @@ import {
   Wallet, User, Calendar, Receipt, Plus, Minus, History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { API_BASE_URL, customFetch } from '../config';
+import { updateCentralKey } from '../syncService';
+import { db } from '../lib/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface FeesManagementProps {
   onBack: () => void;
@@ -77,34 +79,21 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    fetchDailyCollection();
+    const tenantId = localStorage.getItem('madrassaId') || 'master';
+    const docId = `${tenantId}_students`;
+    const docRef = doc(db, 'madrassa_data', docId);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.value)) {
+          setStudents(data.value);
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
-
-  const fetchDailyCollection = async () => {
-    try {
-      const res = await customFetch(`${API_BASE_URL}/api/fees-collection-report`);
-      const data = await res.json();
-      setDailyTotal(data || { dailyTotal: 0, count: 0 });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchTerm) return;
-    try {
-      const response = await customFetch(`${API_BASE_URL}/api/data`);
-      const data = await response.json();
-      const results = data.students.filter((s: Student) => 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        s.regNo.includes(searchTerm) || 
-        s.rollNo.includes(searchTerm)
-      );
-      setStudents(results);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const selectStudent = async (student: Student) => {
     setSelectedStudent(student);
@@ -132,29 +121,28 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
     const total = calculateTotal();
     
     const transaction: FeeTransaction = {
+      id: Date.now(),
       studentId: selectedStudent.id,
       studentName: selectedStudent.name,
       regNo: selectedStudent.regNo,
       month: selectedMonth,
       ...feeForm,
-      totalPaid: total
+      totalPaid: total,
+      paymentDate: new Date().toISOString()
     };
 
-    try {
-      const response = await customFetch(`${API_BASE_URL}/api/save-fee`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(transaction)
-      });
-      
-      if (response.ok) {
-        setPrintData(transaction);
-        setShowSuccess(true);
-        fetchDailyCollection();
-        setTimeout(() => setShowSuccess(false), 2000);
-        setTimeout(() => window.print(), 500);
-      }
-    } catch (err) {
+    const existingFees = JSON.parse(localStorage.getItem('saved_fees') || '[]');
+    const updatedFees = [...existingFees, transaction];
+    
+    // Save to Firestore and LocalStorage
+    const success = await updateCentralKey('saved_fees', updatedFees);
+    
+    if (success) {
+      setPrintData(transaction);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2000);
+      setTimeout(() => window.print(), 500);
+    } else {
       alert('فیس محفوظ کرنے میں خرابی۔');
     }
   };
