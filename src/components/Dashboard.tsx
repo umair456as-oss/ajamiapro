@@ -83,7 +83,6 @@ import RecycleBin from "./RecycleBin";
 import StudentDocumentCapture from "./StudentDocumentCapture";
 import PublicResultPortal from "./PublicResultPortal";
 import {
-  fetchCentralData,
   updateCentralKey,
 } from "../syncService";
 import { db } from "../lib/firebase";

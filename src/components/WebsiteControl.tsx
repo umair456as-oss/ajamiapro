@@ -93,7 +93,39 @@ export default function WebsiteControl({ onBack }: WebsiteControlProps) {
     localStorage.setItem('website_gallery', JSON.stringify(gallery));
     localStorage.setItem('website_gallery_categories', JSON.stringify(galleryCategories));
     localStorage.setItem('website_home_sections', JSON.stringify(homeSections));
-    syncToServer();
+  }, [webSettings, fatawa, gallery, galleryCategories, homeSections]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      const savedSettings = localStorage.getItem('website_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (JSON.stringify(parsed) !== JSON.stringify(webSettings)) setWebSettings(parsed);
+      }
+      const savedFatawa = localStorage.getItem('website_fatawa');
+      if (savedFatawa) {
+        const parsed = JSON.parse(savedFatawa);
+        if (JSON.stringify(parsed) !== JSON.stringify(fatawa)) setFatawa(parsed);
+      }
+      const savedGallery = localStorage.getItem('website_gallery');
+      if (savedGallery) {
+        const parsed = JSON.parse(savedGallery);
+        if (JSON.stringify(parsed) !== JSON.stringify(gallery)) setGallery(parsed);
+      }
+      const savedCats = localStorage.getItem('website_gallery_categories');
+      if (savedCats) {
+        const parsed = JSON.parse(savedCats);
+        if (JSON.stringify(parsed) !== JSON.stringify(galleryCategories)) setGalleryCategories(parsed);
+      }
+      const savedSections = localStorage.getItem('website_home_sections');
+      if (savedSections) {
+        const parsed = JSON.parse(savedSections);
+        if (JSON.stringify(parsed) !== JSON.stringify(homeSections)) setHomeSections(parsed);
+      }
+    };
+
+    window.addEventListener('storage_updated', handleUpdate);
+    return () => window.removeEventListener('storage_updated', handleUpdate);
   }, [webSettings, fatawa, gallery, galleryCategories, homeSections]);
 
   const handleSaveSettings = () => {

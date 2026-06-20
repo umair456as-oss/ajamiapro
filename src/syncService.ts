@@ -133,6 +133,48 @@ export async function syncToServer(): Promise<boolean> {
 
 // Store the active unsubscribe function so we don't start duplicate listeners
 let unsubscribeRealTime: (() => void) | null = null;
+let isLocalUpdateFromFirestore = false;
+
+// Preserve the original local storage function
+const originalSetItem = localStorage.setItem;
+
+// Monkey-patch localStorage.setItem globally to automatically sync all changes to Firestore
+localStorage.setItem = function(key: string, value: string): void {
+  // Always write locally first to keep the page snappy
+  originalSetItem.call(localStorage, key, value);
+
+  // If this update comes from our real-time snapshot pull, skip pushing it back!
+  if (isLocalUpdateFromFirestore) {
+    return;
+  }
+
+  // If the key is in our sync keys list, send it to Firestore in the background
+  if (SYNC_KEYS.includes(key)) {
+    let parsedValue = value;
+    try {
+      parsedValue = JSON.parse(value);
+    } catch (_) {
+      // Keep as string if it is not valid JSON
+    }
+
+    const tenantId = (typeof window !== 'undefined' ? localStorage.getItem('madrassaId') : null) || 'master';
+    const docId = `${tenantId}_${key}`;
+
+    setDoc(doc(db, 'madrassa_data', docId), {
+      key,
+      tenantId,
+      value: parsedValue,
+      updatedAt: new Date().toISOString()
+    }).then(() => {
+      console.log(`[Real-time Monkeypatch] Synced key "${key}" to Firestore.`);
+    }).catch((err) => {
+      console.warn(`[Real-time Monkeypatch] Could not sync key "${key}" to Firestore:`, err);
+    });
+
+    // Notify other parts of the UI on this page
+    window.dispatchEvent(new Event('storage_updated'));
+  }
+};
 
 export function startRealTimeSync() {
   if (unsubscribeRealTime) {
@@ -152,26 +194,34 @@ export function startRealTimeSync() {
   unsubscribeRealTime = onSnapshot(q, (snapshot) => {
     let updatedAny = false;
     
-    snapshot.docChanges().forEach((change) => {
-      // We only care about added or modified documents
-      if (change.type === 'added' || change.type === 'modified') {
-        const docData = change.doc.data();
-        const key = docData.key;
-        const value = docData.value;
+    // Set the flag to true so our monkey-patch knows this write comes from Firestore and won't loop
+    isLocalUpdateFromFirestore = true;
 
-        if (key && SYNC_KEYS.includes(key)) {
-          const remoteValStr = JSON.stringify(value);
-          const localValStr = localStorage.getItem(key);
+    try {
+      snapshot.docChanges().forEach((change) => {
+        // We only care about added or modified documents
+        if (change.type === 'added' || change.type === 'modified') {
+          const docData = change.doc.data();
+          const key = docData.key;
+          const value = docData.value;
 
-          // Only write if the remote value differs from current local value
-          if (remoteValStr !== localValStr) {
-            localStorage.setItem(key, remoteValStr);
-            console.log(`[Real-time Sync Info] Saved updated "${key}" from Firestore`);
-            updatedAny = true;
+          if (key && SYNC_KEYS.includes(key)) {
+            const remoteValStr = JSON.stringify(value);
+            const localValStr = localStorage.getItem(key);
+
+            // Only write if the remote value differs from current local value
+            if (remoteValStr !== localValStr) {
+              originalSetItem.call(localStorage, key, remoteValStr);
+              console.log(`[Real-time Sync Info] Saved updated "${key}" from Firestore`);
+              updatedAny = true;
+            }
           }
         }
-      }
-    });
+      });
+    } finally {
+      // Reset the flag
+      isLocalUpdateFromFirestore = false;
+    }
 
     if (updatedAny) {
       // Dispatch event so components can automatically refresh

@@ -45,6 +45,7 @@ const months = [
 const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
+  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(months[new Date().getMonth()]);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -87,7 +88,7 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data && Array.isArray(data.value)) {
-          setStudents(data.value);
+          setAllStudents(data.value);
         }
       }
     });
@@ -95,15 +96,28 @@ const FeesManagement: React.FC<FeesManagementProps> = ({ onBack }) => {
     return () => unsubscribe();
   }, []);
 
+  const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      setStudents([]);
+      return;
+    }
+    const results = allStudents.filter((s: Student) => 
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.regNo?.includes(searchTerm) || 
+      s.rollNo?.includes(searchTerm)
+    );
+    setStudents(results);
+  };
+
   const selectStudent = async (student: Student) => {
     setSelectedStudent(student);
     setStudents([]);
     setSearchTerm('');
     
-    // Fetch Arrears from history
+    // Fetch Arrears from history from local storage
     try {
-      const res = await customFetch(`${API_BASE_URL}/api/student-fees/${student.regNo}`);
-      const history = await res.json();
+      const savedFees = JSON.parse(localStorage.getItem('saved_fees') || '[]');
+      const history = savedFees.filter((f: any) => f.studentId === student.id || f.regNo === student.regNo);
       // Logic: if they have history, maybe calculate pending? 
       // For now, let's just let the user enter arrears manually or fetch last unpaid.
     } catch (err) {

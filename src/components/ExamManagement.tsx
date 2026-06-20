@@ -33,7 +33,7 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
   const [selectedReportExamType, setSelectedReportExamType] = useState('');
   const [systemSettings, setSystemSettings] = useState<any>({});
 
-  React.useEffect(() => {
+  const loadData = () => {
     // Load system settings
     const savedSystem = JSON.parse(localStorage.getItem('system_settings') || '{}');
     setSystemSettings(savedSystem);
@@ -72,6 +72,12 @@ const ExamManagement: React.FC<ExamManagementProps> = ({ onBack }) => {
     // Load grade settings
     const savedGradeSettings = JSON.parse(localStorage.getItem('grade_settings') || '[]');
     setGradeSettings(savedGradeSettings);
+  };
+
+  React.useEffect(() => {
+    loadData();
+    window.addEventListener('storage_updated', loadData);
+    return () => window.removeEventListener('storage_updated', loadData);
   }, []);
 
   const handleAddGradeSetting = () => {
