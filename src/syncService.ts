@@ -241,7 +241,7 @@ async function syncToFirestore(payload: Record<string, any>) {
  * Gathers all synced keys from local storage and sends them to the server.
  */
 export async function syncToServer(): Promise<boolean> {
-  console.log('Initiating Strict Push Sync to backend server...');
+  console.log('Initiating Strict Push Sync to Firestore...');
   
   // Construct the payload of all synchronized keys
   const payload: Record<string, any> = {};
@@ -249,28 +249,15 @@ export async function syncToServer(): Promise<boolean> {
     payload[key] = safeParse(key, key === 'system_settings' || key === 'website_settings' ? {} : []);
   });
 
-  // Sync locally or with standard server
+  // Sync with Firestore, skip REST API
   try {
     await syncToFirestore(payload);
+    console.log('Strict Push Sync completed to Firestore successfully.');
+    return true;
   } catch (err) {
-    console.warn('Local Firestore sync simulation bypassed.');
+    console.error('Error during Push sync to Firestore:', err);
+    return false;
   }
-
-  try {
-    const response = await customFetch(`${API_BASE_URL}/api/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (response.ok) {
-      console.log('Strict Push Sync completed successfully.');
-      return true;
-    }
-  } catch (err) {
-    console.warn('Network issue during Push sync. Changes are saved locally and will auto-sync later.', err);
-  }
-  return false;
 }
 
 // Store the active unsubscribe function so we don't start duplicate listeners

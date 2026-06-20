@@ -33,11 +33,15 @@ export default function AccountManagement() {
     const docRef = doc(db, 'madrassa_data', docId);
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      console.log('AccountManagement: Realtime update received for', docId);
       if (docSnap.exists()) {
         const data = docSnap.data();
+        console.log('AccountManagement: Data:', data);
         if (data && Array.isArray(data.value)) {
           setUsers(data.value);
         }
+      } else {
+        console.log('AccountManagement: Document does not exist');
       }
     });
     
@@ -399,7 +403,7 @@ export default function AccountManagement() {
                        {u.status !== 'accepted' && <button onClick={() => handleUpdateUserStatus(u.id, 'accepted')} className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded text-xs font-bold hover:bg-emerald-200 transition-all">قبول کریں</button>}
                        {u.status !== 'rejected' && <button onClick={() => handleUpdateUserStatus(u.id, 'rejected')} className="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200 transition-all">مسترد</button>}
                        {u.paymentStatus !== 'paid' && <button onClick={() => handleUpdateUserStatus(u.id, u.status, 'paid')} className="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200 transition-all">ادائیگی کی</button>}
-                       <button onClick={() => handleDeleteUser(u.id)} className="bg-red-50 text-red-600 border border-red-200 px-3 py-1 rounded text-xs font-bold hover:bg-red-100 transition-all">ڈیلیٹ</button>
+                       <button onClick={() => handleDeleteUser(u.id)} className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-700 transition-all shadow-sm">ڈیلیٹ</button>
                     </td>
                   </tr>
                 ))}
